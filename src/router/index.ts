@@ -7,10 +7,22 @@ import AdminDashboardView from '../views/AdminDashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 import ClaimOrderView from '../views/ClaimOrderView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
+import { authService } from '../api/authService'
+import { isAdmin } from '../types/auth'
 
 // Auth guard for protected routes
 const isAuthenticated = (): boolean => {
   return localStorage.getItem('token') !== null
+}
+
+// Check if user has admin role
+const checkAdminRole = async (): Promise<boolean> => {
+  try {
+    const response = await authService.me()
+    return isAdmin(response.data)
+  } catch {
+    return false
+  }
 }
 
 const router = createRouter({
@@ -58,7 +70,7 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: AdminDashboardView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -69,7 +81,7 @@ const router = createRouter({
 })
 
 // Navigation guard
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authenticated = isAuthenticated()
 
   // If route requires auth and user is not authenticated
@@ -78,6 +90,15 @@ router.beforeEach((to, _from, next) => {
     const redirectPath = to.fullPath
     next({ name: 'login', query: { redirect: redirectPath } })
     return
+  }
+
+  // If route requires admin role
+  if (to.meta.requiresAdmin && authenticated) {
+    const hasAdminRole = await checkAdminRole()
+    if (!hasAdminRole) {
+      next({ name: 'profile' })
+      return
+    }
   }
 
   // If route requires guest (login page) and user is authenticated

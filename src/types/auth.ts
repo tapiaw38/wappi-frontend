@@ -1,3 +1,8 @@
+export interface Role {
+  id: string
+  name: string
+}
+
 export interface User {
   id: string
   first_name: string
@@ -7,6 +12,12 @@ export interface User {
   picture: string | null
   is_active: boolean
   verified_email: boolean
+  roles: Role[]
+}
+
+export function isAdmin(user: User | null): boolean {
+  if (!user?.roles) return false
+  return user.roles.some(role => role.name === 'admin' || role.name === 'superadmin')
 }
 
 export interface LoginParams {

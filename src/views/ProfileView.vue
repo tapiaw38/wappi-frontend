@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { profileService } from '../api/profileService'
 import { authService } from '../api/authService'
 import type { Profile } from '../types/profile'
+import type { User } from '../types/auth'
+import { isAdmin } from '../types/auth'
 import MapboxPicker from '../components/MapboxPicker.vue'
 
 const router = useRouter()
@@ -17,6 +19,8 @@ const success = ref(false)
 const profile = ref<Profile | null>(null)
 const profileId = ref<string | null>(null)
 const isCompleted = ref(false)
+const currentUser = ref<User | null>(null)
+const userIsAdmin = computed(() => isAdmin(currentUser.value))
 
 // Country codes
 const countries = [
@@ -62,6 +66,14 @@ const parsePhoneNumber = (fullPhone: string) => {
 
 const loadProfile = async () => {
   try {
+    // Fetch current user to check roles
+    try {
+      const meResponse = await authService.me()
+      currentUser.value = meResponse.data
+    } catch {
+      console.error('Error fetching current user')
+    }
+
     // First check if profile is completed
     const checkResult = await profileService.checkCompleted()
     isCompleted.value = checkResult.is_completed
@@ -153,7 +165,7 @@ onMounted(() => {
     <header class="app-header">
       <h1 class="app-title">Mi Perfil</h1>
       <div class="header-actions">
-        <button @click="goToAdmin" class="admin-button">Admin</button>
+        <button v-if="userIsAdmin" @click="goToAdmin" class="admin-button">Admin</button>
         <button @click="handleLogout" class="logout-button">Cerrar Sesion</button>
       </div>
     </header>
