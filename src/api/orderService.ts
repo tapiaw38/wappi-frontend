@@ -1,0 +1,24 @@
+import { apiClient } from './client'
+import type { Order, CreateOrderInput, UpdateStatusInput, ClaimOrderResponse } from '../types/order'
+
+export const orderService = {
+  async getOrder(id: string): Promise<Order> {
+    const { data } = await apiClient.get<Order>(`/api/orders/${id}`)
+    return data
+  },
+
+  async createOrder(input: CreateOrderInput): Promise<Order> {
+    const { data } = await apiClient.post<Order>('/api/orders', input)
+    return data
+  },
+
+  async updateStatus(id: string, input: UpdateStatusInput): Promise<Order> {
+    const { data } = await apiClient.patch<Order>(`/api/orders/${id}/status`, input)
+    return data
+  },
+
+  async claimOrder(token: string): Promise<ClaimOrderResponse> {
+    const { data } = await apiClient.post<ClaimOrderResponse>(`/api/orders/claim/${token}`)
+    return data
+  }
+}
