@@ -7,6 +7,7 @@ import { authService } from '../api/authService'
 import type { Order } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
+import { isAdmin } from '../types/auth'
 import OrderHeader from '../components/OrderHeader.vue'
 import OrderTimeline from '../components/OrderTimeline.vue'
 import OrderItemsModal from '../components/OrderItemsModal.vue'
@@ -21,6 +22,8 @@ const error = ref<string | null>(null)
 const lastUpdated = ref<Date | null>(null)
 const showItemsModal = ref(false)
 const currentUserId = ref<string | null>(null)
+const isUserAdmin = ref(false)
+const markingDelivered = ref(false)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
@@ -103,8 +106,45 @@ const getCurrentUserId = (): string | null => {
   }
 }
 
+// Check if admin can mark order as delivered
+const canMarkDelivered = computed(() => {
+  if (!isUserAdmin.value || !order.value) return false
+  return order.value.status !== 'DELIVERED' && order.value.status !== 'CANCELLED'
+})
+
+// Check if order is delivered (all dots should be green)
+const isDelivered = computed(() => {
+  return order.value?.status === 'DELIVERED'
+})
+
+// Check admin status
+const checkAdminStatus = async () => {
+  try {
+    const response = await authService.me()
+    isUserAdmin.value = isAdmin(response.data)
+  } catch {
+    isUserAdmin.value = false
+  }
+}
+
+// Mark order as delivered
+const markAsDelivered = async () => {
+  if (!order.value || markingDelivered.value) return
+
+  markingDelivered.value = true
+  try {
+    await orderService.updateStatus(order.value.id, { status: 'DELIVERED' })
+    await fetchOrder()
+  } catch (err) {
+    console.error('Error marking order as delivered:', err)
+  } finally {
+    markingDelivered.value = false
+  }
+}
+
 onMounted(() => {
   currentUserId.value = getCurrentUserId()
+  checkAdminStatus()
   fetchOrder()
   // Auto-refresh every 30 seconds
   refreshInterval = setInterval(fetchOrder, 30000)
@@ -164,7 +204,7 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <OrderTimeline :order="order" />
+        <OrderTimeline :order="order" :all-completed="isDelivered" />
 
         <!-- Order Summary Card -->
         <div v-if="hasOrderItems" class="order-summary-card">
@@ -210,9 +250,19 @@ onUnmounted(() => {
         </div>
 
         <div class="refresh-section">
-          <button @click="refresh" class="refresh-button">
-            🔄 Actualizar estado
-          </button>
+          <div class="action-buttons">
+            <button @click="refresh" class="refresh-button">
+              🔄 Actualizar estado
+            </button>
+            <button
+              v-if="canMarkDelivered"
+              @click="markAsDelivered"
+              :disabled="markingDelivered"
+              class="delivered-button"
+            >
+              {{ markingDelivered ? 'Marcando...' : '✅ Marcar entregado' }}
+            </button>
+          </div>
           <p v-if="lastUpdated" class="last-updated">
             Última actualización: {{ lastUpdated.toLocaleTimeString('es-ES') }}
           </p>
@@ -359,6 +409,38 @@ onUnmounted(() => {
 .refresh-section {
   margin-top: 1.5rem;
   text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.delivered-button {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.delivered-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.delivered-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.delivered-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .last-updated {

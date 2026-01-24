@@ -5,6 +5,7 @@ import { StatusLabels, StatusIcons } from '../types/order'
 
 const props = defineProps<{
   order: Order
+  allCompleted?: boolean
 }>()
 
 const timelineStatuses = computed(() => {
@@ -13,9 +14,10 @@ const timelineStatuses = computed(() => {
   const normalStatuses = props.order.all_statuses.filter(s => s !== 'CANCELLED' && s !== 'PAUSED')
 
   return normalStatuses.map((status, index) => {
-    const isCurrent = status === props.order.status
-    const isCompleted = index < props.order.status_index
-    const isPending = index > props.order.status_index
+    // If allCompleted is true, mark everything as completed
+    const isCurrent = props.allCompleted ? false : status === props.order.status
+    const isCompleted = props.allCompleted ? true : index < props.order.status_index
+    const isPending = props.allCompleted ? false : index > props.order.status_index
 
     return {
       status,
@@ -46,7 +48,7 @@ const isPaused = computed(() => props.order.status === 'PAUSED')
       <span class="paused-text">Pedido Pausado</span>
     </div>
 
-    <!-- Normal Timeline -->
+    <!-- Normal Timeline (including Delivered state with all green) -->
     <div v-else class="timeline">
       <div
         v-for="(item, index) in timelineStatuses"
