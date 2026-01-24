@@ -654,8 +654,15 @@ onMounted(() => {
             </div>
             <div class="detail-row">
               <span class="detail-label">Coordenadas:</span>
-              <span class="detail-value coordinates">
-                {{ viewingProfile.location.latitude.toFixed(6) }}, {{ viewingProfile.location.longitude.toFixed(6) }}
+              <span class="detail-value">
+                <a
+                  :href="getGoogleMapsLink(viewingProfile.location.latitude, viewingProfile.location.longitude)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="maps-link"
+                >
+                  📍 Ver en Google Maps
+                </a>
               </span>
             </div>
           </div>
@@ -1124,6 +1131,21 @@ onMounted(() => {
 .detail-value.coordinates {
   font-family: monospace;
   font-size: 0.8rem;
+}
+
+.maps-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: color 0.2s;
+}
+
+.maps-link:hover {
+  color: #5a67d8;
+  text-decoration: underline;
 }
 
 .detail-value.user-id-text {
