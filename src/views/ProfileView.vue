@@ -7,6 +7,7 @@ import type { Profile } from '../types/profile'
 import type { User } from '../types/auth'
 import { isAdmin } from '../types/auth'
 import MapboxPicker from '../components/MapboxPicker.vue'
+import wappiLogo from '../assets/img/wappi-logo.png'
 
 const router = useRouter()
 
@@ -47,7 +48,7 @@ const address = ref('')
 
 // Full phone number with country code
 const fullPhoneNumber = computed(() => {
-  if (!phoneNumber.value) return ''
+  if (!phoneNumber.value || !selectedCountry.value) return ''
   const cleanNumber = phoneNumber.value.replace(/\D/g, '')
   return `${selectedCountry.value.dialCode}${cleanNumber}`
 })
@@ -163,6 +164,9 @@ onMounted(() => {
 <template>
   <div class="profile-view">
     <header class="app-header">
+      <div class="header-logo">
+        <img :src="wappiLogo" alt="Wappi" class="logo-img" />
+      </div>
       <h1 class="app-title">Mi Perfil</h1>
       <div class="header-actions">
         <button v-if="userIsAdmin" @click="goToAdmin" class="admin-button">Admin</button>
@@ -269,7 +273,8 @@ onMounted(() => {
     </main>
 
     <footer class="app-footer">
-      <p>Powered by WhatsApp IA Assistant</p>
+      <img :src="wappiLogo" alt="Wappi" class="footer-logo" />
+      <p>Powered by Nymia Assistant</p>
     </footer>
   </div>
 </template>
@@ -294,11 +299,23 @@ onMounted(() => {
   justify-content: space-between;
 }
 
+.header-logo {
+  display: flex;
+  align-items: center;
+}
+
+.logo-img {
+  height: 32px;
+  width: auto;
+}
+
 .app-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
   margin: 0;
+  flex: 1;
+  text-align: center;
 }
 
 .header-actions {
@@ -613,6 +630,16 @@ onMounted(() => {
   padding: 1rem;
   text-align: center;
   border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-logo {
+  height: 24px;
+  width: auto;
+  opacity: 0.7;
 }
 
 .app-footer p {

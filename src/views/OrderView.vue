@@ -9,6 +9,7 @@ import type { Profile } from '../types/profile'
 import OrderHeader from '../components/OrderHeader.vue'
 import OrderTimeline from '../components/OrderTimeline.vue'
 import OrderItemsModal from '../components/OrderItemsModal.vue'
+import wappiLogo from '../assets/img/wappi-logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,6 +95,7 @@ onUnmounted(() => {
 <template>
   <div class="order-view">
     <header class="app-header">
+      <img :src="wappiLogo" alt="Wappi" class="header-logo" />
       <h1 class="app-title">📦 Seguimiento de Pedido</h1>
     </header>
 
@@ -194,7 +196,8 @@ onUnmounted(() => {
     </main>
 
     <footer class="app-footer">
-      <p>Powered by WhatsApp IA Assistant</p>
+      <img :src="wappiLogo" alt="Wappi" class="footer-logo" />
+      <p>Powered by Nymia Assistant</p>
     </footer>
 
     <!-- Order Items Modal -->
@@ -222,6 +225,15 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.header-logo {
+  height: 32px;
+  width: auto;
 }
 
 .app-title {
@@ -471,6 +483,16 @@ onUnmounted(() => {
   padding: 1rem;
   text-align: center;
   border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-logo {
+  height: 24px;
+  width: auto;
+  opacity: 0.7;
 }
 
 .app-footer p {
