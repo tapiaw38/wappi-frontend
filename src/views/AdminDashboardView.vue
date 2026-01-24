@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { apiClient } from '../api/client'
 import { authClient } from '../api/authClient'
+import wappiLogo from '../assets/img/wappi-logo.png'
 
 interface Location {
   id: string
@@ -342,7 +343,10 @@ onMounted(() => {
 <template>
   <div class="admin-dashboard">
     <header class="dashboard-header">
-      <h1>Panel de Administración</h1>
+      <div class="header-content">
+        <img :src="wappiLogo" alt="Wappi" class="header-logo" />
+        <h1>Panel de Administración</h1>
+      </div>
       <button @click="fetchData" class="refresh-btn" :disabled="loading">
         {{ loading ? 'Cargando...' : 'Actualizar' }}
       </button>
@@ -729,6 +733,17 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-logo {
+  height: 40px;
+  width: auto;
 }
 
 .dashboard-header h1 {

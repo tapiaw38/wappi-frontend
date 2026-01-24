@@ -8,8 +8,9 @@ const props = defineProps<{
 }>()
 
 const timelineStatuses = computed(() => {
-  // Filter out CANCELLED for the normal timeline
-  const normalStatuses = props.order.all_statuses.filter(s => s !== 'CANCELLED')
+  // Filter out CANCELLED and PAUSED for the normal timeline
+  // They will be shown separately if the order is in those states
+  const normalStatuses = props.order.all_statuses.filter(s => s !== 'CANCELLED' && s !== 'PAUSED')
 
   return normalStatuses.map((status, index) => {
     const isCurrent = status === props.order.status
@@ -28,6 +29,7 @@ const timelineStatuses = computed(() => {
 })
 
 const isCancelled = computed(() => props.order.status === 'CANCELLED')
+const isPaused = computed(() => props.order.status === 'PAUSED')
 </script>
 
 <template>
@@ -36,6 +38,12 @@ const isCancelled = computed(() => props.order.status === 'CANCELLED')
     <div v-if="isCancelled" class="cancelled-banner">
       <span class="cancelled-icon">❌</span>
       <span class="cancelled-text">Pedido Cancelado</span>
+    </div>
+
+    <!-- Paused State -->
+    <div v-else-if="isPaused" class="paused-banner">
+      <span class="paused-icon">⏸️</span>
+      <span class="paused-text">Pedido Pausado</span>
     </div>
 
     <!-- Normal Timeline -->
@@ -89,6 +97,27 @@ const isCancelled = computed(() => props.order.status === 'CANCELLED')
   font-size: 1.25rem;
   font-weight: 600;
   color: #dc2626;
+}
+
+.paused-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 12px;
+  border: 2px solid #f59e0b;
+}
+
+.paused-icon {
+  font-size: 2rem;
+}
+
+.paused-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #d97706;
 }
 
 .timeline {
