@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { orderService } from '../api/orderService'
 import { profileService } from '../api/profileService'
+import { authService } from '../api/authService'
 import type { Order } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
@@ -19,12 +20,20 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const lastUpdated = ref<Date | null>(null)
 const showItemsModal = ref(false)
+const currentUserId = ref<string | null>(null)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
-// Check if profile can be edited (CREATED, CONFIRMED or PREPARING)
+// Check if the current user is the owner of the profile
+const isProfileOwner = computed(() => {
+  if (!currentUserId.value || !profile.value) return false
+  return profile.value.user_id === currentUserId.value
+})
+
+// Check if profile can be edited (CREATED, CONFIRMED or PREPARING) AND user is the owner
 const canEditProfile = computed(() => {
   if (!order.value) return false
+  if (!isProfileOwner.value) return false
   return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
 })
 
@@ -79,7 +88,23 @@ const editProfile = () => {
   }
 }
 
+// Get current user ID from JWT token
+const getCurrentUserId = (): string | null => {
+  const token = localStorage.getItem('token')
+  if (!token) return null
+
+  try {
+    // Decode JWT payload (base64)
+    const payload = token.split('.')[1]
+    const decoded = JSON.parse(atob(payload))
+    return decoded.user_id || null
+  } catch {
+    return null
+  }
+}
+
 onMounted(() => {
+  currentUserId.value = getCurrentUserId()
   fetchOrder()
   // Auto-refresh every 30 seconds
   refreshInterval = setInterval(fetchOrder, 30000)
