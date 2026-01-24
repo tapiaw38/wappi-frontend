@@ -1350,6 +1350,11 @@ onMounted(() => {
   background: #f59e0b;
   border: none;
   color: white;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .btn-pause:hover:not(:disabled) {
@@ -1360,6 +1365,11 @@ onMounted(() => {
   background: #ef4444;
   border: none;
   color: white;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .btn-cancel-order:hover:not(:disabled) {
