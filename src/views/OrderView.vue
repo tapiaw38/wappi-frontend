@@ -4,9 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { orderService } from '../api/orderService'
 import { profileService } from '../api/profileService'
 import type { Order } from '../types/order'
+import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
 import OrderHeader from '../components/OrderHeader.vue'
 import OrderTimeline from '../components/OrderTimeline.vue'
+import OrderItemsModal from '../components/OrderItemsModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +17,7 @@ const profile = ref<Profile | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const lastUpdated = ref<Date | null>(null)
+const showItemsModal = ref(false)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
@@ -22,6 +25,16 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null
 const canEditProfile = computed(() => {
   if (!order.value) return false
   return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
+})
+
+// Check if order has items data
+const hasOrderItems = computed(() => {
+  return order.value?.data?.items && order.value.data.items.length > 0
+})
+
+// Calculate order total
+const orderTotal = computed(() => {
+  return calculateOrderTotal(order.value?.data)
 })
 
 const fetchOrder = async () => {
@@ -60,7 +73,6 @@ const refresh = async () => {
 }
 
 const editProfile = () => {
-  // TODO: Implement profile editing - for now redirect to a placeholder
   if (order.value) {
     router.push(`/edit-profile/${order.value.profile_id}`)
   }
@@ -107,6 +119,22 @@ onUnmounted(() => {
         <OrderHeader :order="order" />
         <OrderTimeline :order="order" />
 
+        <!-- Order Summary Card -->
+        <div v-if="hasOrderItems" class="order-summary-card">
+          <div class="summary-header">
+            <h3>Resumen del pedido</h3>
+          </div>
+          <div class="summary-content">
+            <div class="summary-info">
+              <span class="items-count">{{ order.data!.items.length }} producto(s)</span>
+              <span class="total-amount">{{ formatPrice(orderTotal) }}</span>
+            </div>
+            <button class="view-details-button" @click="showItemsModal = true">
+              Ver detalle
+            </button>
+          </div>
+        </div>
+
         <!-- Delivery Info Card -->
         <div v-if="profile" class="delivery-card">
           <div class="delivery-header">
@@ -148,6 +176,14 @@ onUnmounted(() => {
     <footer class="app-footer">
       <p>Powered by WhatsApp IA Assistant</p>
     </footer>
+
+    <!-- Order Items Modal -->
+    <OrderItemsModal
+      v-if="order?.data"
+      :data="order.data"
+      :show="showItemsModal"
+      @close="showItemsModal = false"
+    />
   </div>
 </template>
 
@@ -348,6 +384,66 @@ onUnmounted(() => {
   padding-top: 0.75rem;
   border-top: 1px solid #f3f4f6;
   text-align: center;
+}
+
+.order-summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.summary-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+}
+
+.summary-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.items-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.total-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.view-details-button {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.view-details-button:hover {
+  background: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+.view-details-button:active {
+  transform: translateY(0);
 }
 
 .app-footer {

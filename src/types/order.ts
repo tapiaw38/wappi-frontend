@@ -1,12 +1,37 @@
+export interface OrderItem {
+  name: string
+  price: number
+  quantity: number
+}
+
+export interface OrderData {
+  items: OrderItem[]
+}
+
 export interface Order {
   id: string
   profile_id: string
   status: string
   status_index: number
   eta: string
+  data?: OrderData
   created_at: string
   updated_at: string
   all_statuses: string[]
+}
+
+export function calculateOrderTotal(data?: OrderData): number {
+  if (!data?.items) return 0
+  return data.items.reduce((total, item) => total + (item.price * item.quantity), 0)
+}
+
+export function formatPrice(price: number): string {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(price)
 }
 
 export interface CreateOrderInput {
