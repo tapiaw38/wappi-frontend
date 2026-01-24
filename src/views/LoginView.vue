@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { authService } from '../api/authService'
 import GoogleButton from '../components/GoogleButton.vue'
 import type { User } from '../types/auth'
+import wappiLogo from '../assets/img/wappi-logo.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -163,10 +164,7 @@ const handleGoogleLogin = async (code: string) => {
     <div class="login-content">
       <div class="login-header">
         <div class="logo-container">
-          <div class="logo-icon">
-            <span>W</span>
-          </div>
-          <h1 class="logo-text">Wappi</h1>
+          <img :src="wappiLogo" alt="Wappi" class="logo-img" />
         </div>
         <p class="login-subtitle">
           {{ currentView === 'login' ? 'Bienvenido de vuelta' : 'Crea tu cuenta' }}
@@ -230,30 +228,28 @@ const handleGoogleLogin = async (code: string) => {
 
         <!-- Register Form -->
         <form v-else @submit.prevent="handleRegister" class="auth-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="firstName">Nombre</label>
-              <input
-                id="firstName"
-                v-model="firstName"
-                type="text"
-                placeholder="Tu nombre"
-                class="form-input"
-                required
-              />
-            </div>
+          <div class="form-group">
+            <label for="firstName">Nombre</label>
+            <input
+              id="firstName"
+              v-model="firstName"
+              type="text"
+              placeholder="Tu nombre"
+              class="form-input"
+              required
+            />
+          </div>
 
-            <div class="form-group">
-              <label for="lastName">Apellido</label>
-              <input
-                id="lastName"
-                v-model="lastName"
-                type="text"
-                placeholder="Tu apellido"
-                class="form-input"
-                required
-              />
-            </div>
+          <div class="form-group">
+            <label for="lastName">Apellido</label>
+            <input
+              id="lastName"
+              v-model="lastName"
+              type="text"
+              placeholder="Tu apellido"
+              class="form-input"
+              required
+            />
           </div>
 
           <div class="form-group">
@@ -424,33 +420,13 @@ const handleGoogleLogin = async (code: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
 
-.logo-icon {
-  width: 3.5rem;
-  height: 3.5rem;
-  background: white;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-.logo-icon span {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #667eea;
-}
-
-.logo-text {
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  margin: 0;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+.logo-img {
+  height: 80px;
+  width: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
 }
 
 .login-subtitle {

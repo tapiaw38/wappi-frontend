@@ -156,6 +156,10 @@ const goToAdmin = () => {
   router.push('/admin')
 }
 
+const goToMyOrders = () => {
+  router.push('/my-orders')
+}
+
 onMounted(() => {
   loadProfile()
 })
@@ -169,6 +173,7 @@ onMounted(() => {
       </div>
       <h1 class="app-title">Mi Perfil</h1>
       <div class="header-actions">
+        <button @click="goToMyOrders" class="orders-button">Ver ordenes</button>
         <button v-if="userIsAdmin" @click="goToAdmin" class="admin-button">Admin</button>
         <button @click="handleLogout" class="logout-button">Cerrar Sesion</button>
       </div>
@@ -321,6 +326,20 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.orders-button {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.orders-button:hover {
+  background: #059669;
 }
 
 .admin-button {

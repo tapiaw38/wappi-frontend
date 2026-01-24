@@ -6,6 +6,7 @@ import ProfileView from '../views/ProfileView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 import ClaimOrderView from '../views/ClaimOrderView.vue'
+import UserOrdersView from '../views/UserOrdersView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import { authService } from '../api/authService'
 import { isAdmin } from '../types/auth'
@@ -64,6 +65,12 @@ const router = createRouter({
       path: '/edit-profile/:id',
       name: 'edit-profile',
       component: EditProfileView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/my-orders',
+      name: 'my-orders',
+      component: UserOrdersView,
       meta: { requiresAuth: true }
     },
     {

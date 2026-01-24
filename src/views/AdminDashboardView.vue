@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { apiClient } from '../api/client'
 import { authClient } from '../api/authClient'
+import { authService } from '../api/authService'
 import wappiLogo from '../assets/img/wappi-logo.png'
+
+const router = useRouter()
 
 interface Location {
   id: string
@@ -335,6 +339,11 @@ const shareOrderOnWhatsApp = (order: Order) => {
   window.open(whatsappUrl, '_blank')
 }
 
+const handleLogout = () => {
+  authService.logout()
+  router.push('/login')
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -347,9 +356,14 @@ onMounted(() => {
         <img :src="wappiLogo" alt="Wappi" class="header-logo" />
         <h1>Panel de Administración</h1>
       </div>
-      <button @click="fetchData" class="refresh-btn" :disabled="loading">
-        {{ loading ? 'Cargando...' : 'Actualizar' }}
-      </button>
+      <div class="header-actions">
+        <button @click="fetchData" class="refresh-btn" :disabled="loading">
+          {{ loading ? 'Cargando...' : 'Actualizar' }}
+        </button>
+        <button @click="handleLogout" class="logout-btn">
+          Cerrar Sesión
+        </button>
+      </div>
     </header>
 
     <nav class="tabs">
@@ -758,6 +772,11 @@ onMounted(() => {
   font-size: 1.5rem;
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .refresh-btn {
   background: rgba(255, 255, 255, 0.1);
   color: white;
@@ -774,7 +793,22 @@ onMounted(() => {
 
 .refresh-btn:disabled {
   opacity: 0.6;
-  cursor: not-allowed;
+}
+
+.logout-btn {
+  background: none;
+  color: #fca5a5;
+  border: 1px solid #fca5a5;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.logout-btn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
 }
 
 .tabs {

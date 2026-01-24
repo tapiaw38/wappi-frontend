@@ -52,6 +52,11 @@ export interface ClaimOrderResponse {
   claimed_at: string
 }
 
+export interface MyOrdersResponse {
+  orders: Order[]
+  total: number
+}
+
 export const StatusLabels: Record<string, string> = {
   CREATED: 'Pedido Creado',
   CONFIRMED: 'Confirmado',

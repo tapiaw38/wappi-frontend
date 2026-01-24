@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Order, CreateOrderInput, UpdateStatusInput, ClaimOrderResponse } from '../types/order'
+import type { Order, CreateOrderInput, UpdateStatusInput, ClaimOrderResponse, MyOrdersResponse } from '../types/order'
 
 export const orderService = {
   async getOrder(id: string): Promise<Order> {
@@ -19,6 +19,11 @@ export const orderService = {
 
   async claimOrder(token: string): Promise<ClaimOrderResponse> {
     const { data } = await apiClient.post<ClaimOrderResponse>(`/api/orders/claim/${token}`)
+    return data
+  },
+
+  async getMyOrders(): Promise<MyOrdersResponse> {
+    const { data } = await apiClient.get<MyOrdersResponse>('/api/orders/my')
     return data
   }
 }
