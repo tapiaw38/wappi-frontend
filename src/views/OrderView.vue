@@ -117,6 +117,26 @@ onUnmounted(() => {
       <!-- Order Content -->
       <div v-else-if="order" class="order-content">
         <OrderHeader :order="order" />
+
+        <!-- Status Message Alert -->
+        <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED')" 
+             :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : 'alert-cancelled']">
+          <div class="alert-content">
+            <span class="alert-icon">{{ order.status === 'PAUSED' ? '⏸️' : '❌' }}</span>
+            <div class="alert-text">
+              <strong>{{ order.status === 'PAUSED' ? 'Tu pedido está pausado' : 'Tu pedido ha sido cancelado' }}</strong>
+              <p>{{ order.status_message }}</p>
+            </div>
+          </div>
+          <button
+            v-if="order.status === 'PAUSED' && canEditProfile"
+            @click="editProfile"
+            class="alert-button"
+          >
+            Editar perfil
+          </button>
+        </div>
+
         <OrderTimeline :order="order" />
 
         <!-- Order Summary Card -->
@@ -457,5 +477,72 @@ onUnmounted(() => {
   color: #9ca3af;
   font-size: 0.875rem;
   margin: 0;
+}
+
+.status-alert {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid;
+}
+
+.alert-paused {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.alert-cancelled {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.alert-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.alert-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.alert-text {
+  flex: 1;
+}
+
+.alert-text strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.alert-text p {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.alert-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.alert-button:hover {
+  background: #5a67d8;
 }
 </style>

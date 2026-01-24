@@ -23,8 +23,16 @@ interface Order {
   id: string
   profile_id: string
   status: string
+  status_message?: string
   status_index: number
   eta: string
+  data?: {
+    items: Array<{
+      name: string
+      price: number
+      quantity: number
+    }>
+  }
   created_at: string
   updated_at: string
   all_statuses: string[]
@@ -46,6 +54,16 @@ const editingOrder = ref<Order | null>(null)
 const editForm = ref({ status: '', eta: '' })
 const saving = ref(false)
 const viewingProfile = ref<Profile | null>(null)
+const pausingOrder = ref<Order | null>(null)
+const pauseForm = ref({ reason: '', customMessage: '' })
+const viewingOrder = ref<Order | null>(null)
+const pauseReasons = [
+  { value: 'phone', label: 'Número de teléfono incorrecto' },
+  { value: 'address', label: 'Dirección incompleta o incorrecta' },
+  { value: 'zone', label: 'Fuera de zona de entrega' },
+  { value: 'no_response', label: 'Cliente no responde' },
+  { value: 'other', label: 'Otro' }
+]
 
 const statusLabels: Record<string, string> = {
   CREATED: 'Creado',
@@ -53,6 +71,7 @@ const statusLabels: Record<string, string> = {
   PREPARING: 'En Preparación',
   ON_THE_WAY: 'En Camino',
   DELIVERED: 'Entregado',
+  PAUSED: 'Pausado',
   CANCELLED: 'Cancelado'
 }
 
@@ -62,6 +81,7 @@ const statusColors: Record<string, string> = {
   PREPARING: '#f59e0b',
   ON_THE_WAY: '#8b5cf6',
   DELIVERED: '#10b981',
+  PAUSED: '#f59e0b',
   CANCELLED: '#ef4444'
 }
 
@@ -125,6 +145,14 @@ const closeProfileDetail = () => {
   viewingProfile.value = null
 }
 
+const openOrderDetail = (order: Order) => {
+  viewingOrder.value = order
+}
+
+const closeOrderDetail = () => {
+  viewingOrder.value = null
+}
+
 const startEdit = (order: Order) => {
   editingOrder.value = order
   editForm.value = {
@@ -136,6 +164,88 @@ const startEdit = (order: Order) => {
 const cancelEdit = () => {
   editingOrder.value = null
   editForm.value = { status: '', eta: '' }
+}
+
+const startPause = (order: Order) => {
+  pausingOrder.value = order
+  pauseForm.value = { reason: '', customMessage: '' }
+}
+
+const cancelPause = () => {
+  pausingOrder.value = null
+  pauseForm.value = { reason: '', customMessage: '' }
+}
+
+const savePause = async () => {
+  if (!pausingOrder.value || !pauseForm.value.reason) return
+
+  saving.value = true
+  try {
+    let statusMessage = ''
+    const reason = pauseReasons.find(r => r.value === pauseForm.value.reason)
+    
+    if (pauseForm.value.reason === 'other') {
+      statusMessage = pauseForm.value.customMessage || 'Pedido pausado'
+    } else {
+      statusMessage = reason?.label || 'Pedido pausado'
+      if (pauseForm.value.customMessage) {
+        statusMessage += `: ${pauseForm.value.customMessage}`
+      }
+    }
+
+    const response = await apiClient.put(`/api/admin/orders/${pausingOrder.value.id}`, {
+      status: 'PAUSED',
+      status_message: statusMessage
+    })
+
+    const index = orders.value.findIndex(o => o.id === pausingOrder.value?.id)
+    if (index !== -1) {
+      orders.value[index] = response.data
+    }
+
+    cancelPause()
+  } catch (err) {
+    console.error('Error pausing order:', err)
+    alert('Error al pausar la orden')
+  } finally {
+    saving.value = false
+  }
+}
+
+const saveCancel = async () => {
+  if (!pausingOrder.value || !pauseForm.value.reason) return
+
+  saving.value = true
+  try {
+    let statusMessage = ''
+    const reason = pauseReasons.find(r => r.value === pauseForm.value.reason)
+    
+    if (pauseForm.value.reason === 'other') {
+      statusMessage = pauseForm.value.customMessage || 'Pedido cancelado'
+    } else {
+      statusMessage = reason?.label || 'Pedido cancelado'
+      if (pauseForm.value.customMessage) {
+        statusMessage += `: ${pauseForm.value.customMessage}`
+      }
+    }
+
+    const response = await apiClient.put(`/api/admin/orders/${pausingOrder.value.id}`, {
+      status: 'CANCELLED',
+      status_message: statusMessage
+    })
+
+    const index = orders.value.findIndex(o => o.id === pausingOrder.value?.id)
+    if (index !== -1) {
+      orders.value[index] = response.data
+    }
+
+    cancelPause()
+  } catch (err) {
+    console.error('Error cancelling order:', err)
+    alert('Error al cancelar la orden')
+  } finally {
+    saving.value = false
+  }
 }
 
 const saveOrder = async () => {
@@ -183,6 +293,20 @@ const getOrderLink = (orderId: string) => {
 
 const getGoogleMapsLink = (lat: number, lng: number) => {
   return `https://www.google.com/maps?q=${lat},${lng}`
+}
+
+const calculateOrderTotal = (order: Order): number => {
+  if (!order.data?.items) return 0
+  return order.data.items.reduce((total, item) => total + (item.price * item.quantity), 0)
+}
+
+const formatPrice = (price: number): string => {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(price)
 }
 
 const shareOrderOnWhatsApp = (order: Order) => {
@@ -259,6 +383,7 @@ onMounted(() => {
                 <th>ID</th>
                 <th>Estado</th>
                 <th>ETA</th>
+                <th>Pedido</th>
                 <th>Perfil</th>
                 <th>Creado</th>
                 <th>Acciones</th>
@@ -283,6 +408,21 @@ onMounted(() => {
                 <td>{{ order.eta }}</td>
                 <td>
                   <button
+                    v-if="order.data && order.data.items && order.data.items.length > 0"
+                    class="view-order-btn"
+                    @click="openOrderDetail(order)"
+                    title="Ver detalles del pedido"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>{{ order.data.items.length }} item(s)</span>
+                  </button>
+                  <span v-else class="no-items">Sin items</span>
+                </td>
+                <td>
+                  <button
                     v-if="getProfileForOrder(order.profile_id)"
                     class="profile-link"
                     @click="openProfileDetail(getProfileForOrder(order.profile_id)!)"
@@ -294,7 +434,24 @@ onMounted(() => {
                 </td>
                 <td>{{ formatDate(order.created_at) }}</td>
                 <td class="actions-cell">
-                  <button class="edit-btn" @click="startEdit(order)">Editar</button>
+                  <button class="edit-btn" @click="startEdit(order)" title="Editar orden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+                  <button
+                    v-if="order.status !== 'CANCELLED' && order.status !== 'DELIVERED'"
+                    class="pause-cancel-btn"
+                    @click="startPause(order)"
+                    title="Pausar o Cancelar pedido"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                  </button>
                   <button
                     v-if="getProfileForOrder(order.profile_id)"
                     class="share-btn"
@@ -396,6 +553,59 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Pause/Cancel Order Modal -->
+    <div v-if="pausingOrder" class="modal-overlay" @click.self="cancelPause">
+      <div class="modal">
+        <h2>Pausar o Cancelar Pedido</h2>
+        <p class="modal-id">ID: {{ pausingOrder.id }}</p>
+
+        <div class="form-group">
+          <label>Razón</label>
+          <select v-model="pauseForm.reason" class="form-select">
+            <option value="">Seleccione una razón</option>
+            <option
+              v-for="reason in pauseReasons"
+              :key="reason.value"
+              :value="reason.value"
+            >
+              {{ reason.label }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="pauseForm.reason" class="form-group">
+          <label>Mensaje adicional (opcional)</label>
+          <textarea
+            v-model="pauseForm.customMessage"
+            class="form-textarea"
+            placeholder="Agregar detalles adicionales..."
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="cancelPause" :disabled="saving">
+            Cancelar
+          </button>
+          <button
+            v-if="pausingOrder.status !== 'PAUSED'"
+            class="btn-pause"
+            @click="savePause"
+            :disabled="saving || !pauseForm.reason"
+          >
+            {{ saving ? 'Pausando...' : 'Pausar' }}
+          </button>
+          <button
+            class="btn-cancel-order"
+            @click="saveCancel"
+            :disabled="saving || !pauseForm.reason"
+          >
+            {{ saving ? 'Cancelando...' : 'Cancelar Pedido' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Profile Detail Modal -->
     <div v-if="viewingProfile" class="modal-overlay" @click.self="closeProfileDetail">
       <div class="modal profile-modal">
@@ -466,6 +676,40 @@ onMounted(() => {
 
         <div class="modal-actions">
           <button class="btn-cancel" @click="closeProfileDetail">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div v-if="viewingOrder" class="modal-overlay" @click.self="closeOrderDetail">
+      <div class="modal order-modal">
+        <h2>Detalles del Pedido</h2>
+        <p class="modal-id">ID: {{ viewingOrder.id }}</p>
+
+        <div v-if="viewingOrder.data && viewingOrder.data.items && viewingOrder.data.items.length > 0" class="order-items-section">
+          <h3>Items del Pedido</h3>
+          <div class="items-list">
+            <div v-for="(item, index) in viewingOrder.data.items" :key="index" class="item-row">
+              <div class="item-info">
+                <span class="item-name">{{ item.name }}</span>
+                <span class="item-quantity">Cantidad: {{ item.quantity }}</span>
+              </div>
+              <div class="item-price">
+                {{ formatPrice(item.price * item.quantity) }}
+              </div>
+            </div>
+          </div>
+          <div class="order-total">
+            <span class="total-label">Total:</span>
+            <span class="total-amount">{{ formatPrice(calculateOrderTotal(viewingOrder)) }}</span>
+          </div>
+        </div>
+        <div v-else class="no-items-message">
+          <p>Este pedido no tiene items registrados.</p>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="closeOrderDetail">Cerrar</button>
         </div>
       </div>
     </div>
@@ -677,6 +921,35 @@ onMounted(() => {
   color: #94a3b8;
 }
 
+.view-order-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.view-order-btn:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.view-order-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.no-items {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
 .profile-link {
   background: none;
   border: none;
@@ -706,6 +979,96 @@ onMounted(() => {
 
 .profile-modal {
   max-width: 500px;
+}
+
+.order-modal {
+  max-width: 600px;
+}
+
+.order-items-section {
+  margin-bottom: 1.5rem;
+}
+
+.order-items-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.item-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.9rem;
+}
+
+.item-quantity {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.item-price {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 1rem;
+}
+
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #667eea;
+  color: white;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.total-label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.total-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.no-items-message {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+.no-items-message p {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 .profile-detail-section {
@@ -770,32 +1133,69 @@ onMounted(() => {
   background: #667eea;
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 0;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.875rem;
-  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-right: 0.5rem;
 }
 
 .edit-btn:hover {
   background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.pause-cancel-btn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-right: 0.5rem;
+}
+
+.pause-cancel-btn:hover {
+  background: #d97706;
+  transform: translateY(-1px);
 }
 
 .share-btn {
   background: #25D366;
   color: white;
   border: none;
-  padding: 0.5rem;
+  padding: 0;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .share-btn:hover {
-  background: #128C7E;
+  background: #20ba5a;
+  transform: translateY(-1px);
+}
+
+.edit-btn svg,
+.pause-cancel-btn svg,
+.share-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Modal */
@@ -893,9 +1293,39 @@ onMounted(() => {
   background: #5a67d8;
 }
 
-.btn-cancel:disabled,
-.btn-save:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-pause {
+  background: #f59e0b;
+  border: none;
+  color: white;
+}
+
+.btn-pause:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.btn-cancel-order {
+  background: #ef4444;
+  border: none;
+  color: white;
+}
+
+.btn-cancel-order:hover:not(:disabled) {
+  background: #dc2626;
 }
 </style>

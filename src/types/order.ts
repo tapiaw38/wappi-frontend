@@ -12,6 +12,7 @@ export interface Order {
   id: string
   profile_id: string
   status: string
+  status_message?: string
   status_index: number
   eta: string
   data?: OrderData
@@ -57,6 +58,7 @@ export const StatusLabels: Record<string, string> = {
   PREPARING: 'En Preparación',
   ON_THE_WAY: 'En Camino',
   DELIVERED: 'Entregado',
+  PAUSED: 'Pausado',
   CANCELLED: 'Cancelado'
 }
 
@@ -66,5 +68,6 @@ export const StatusIcons: Record<string, string> = {
   PREPARING: '👨‍🍳',
   ON_THE_WAY: '🚗',
   DELIVERED: '📦',
+  PAUSED: '⏸️',
   CANCELLED: '❌'
 }
