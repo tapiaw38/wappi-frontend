@@ -62,6 +62,10 @@ const viewingProfile = ref<Profile | null>(null)
 const pausingOrder = ref<Order | null>(null)
 const pauseForm = ref({ reason: '', customMessage: '' })
 const viewingOrder = ref<Order | null>(null)
+const isEditingItems = ref(false)
+const savingItems = ref(false)
+const editableItems = ref<Array<{ name: string; price: number; quantity: number }>>([])
+
 const pauseReasons = [
   { value: 'phone', label: 'Número de teléfono incorrecto' },
   { value: 'address', label: 'Dirección incompleta o incorrecta' },
@@ -77,7 +81,8 @@ const statusLabels: Record<string, string> = {
   ON_THE_WAY: 'En Camino',
   DELIVERED: 'Entregado',
   PAUSED: 'Pausado',
-  CANCELLED: 'Cancelado'
+  CANCELLED: 'Cancelado',
+  MODIFICATION_REQUESTED: 'Modificación Solicitada'
 }
 
 const statusColors: Record<string, string> = {
@@ -87,7 +92,8 @@ const statusColors: Record<string, string> = {
   ON_THE_WAY: '#8b5cf6',
   DELIVERED: '#10b981',
   PAUSED: '#f59e0b',
-  CANCELLED: '#ef4444'
+  CANCELLED: '#ef4444',
+  MODIFICATION_REQUESTED: '#f97316'
 }
 
 const fetchUserInfo = async (userId: string): Promise<UserInfo | null> => {
@@ -156,6 +162,69 @@ const openOrderDetail = (order: Order) => {
 
 const closeOrderDetail = () => {
   viewingOrder.value = null
+  isEditingItems.value = false
+  editableItems.value = []
+}
+
+const startEditingItems = () => {
+  if (viewingOrder.value?.data?.items) {
+    editableItems.value = viewingOrder.value.data.items.map(item => ({ ...item }))
+  } else {
+    editableItems.value = []
+  }
+  isEditingItems.value = true
+}
+
+const cancelEditingItems = () => {
+  isEditingItems.value = false
+  editableItems.value = []
+}
+
+const addEditableItem = () => {
+  editableItems.value.push({ name: '', price: 0, quantity: 1 })
+}
+
+const removeEditableItem = (index: number) => {
+  editableItems.value.splice(index, 1)
+}
+
+const editableItemsTotal = () => {
+  return editableItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+}
+
+const saveItemsChanges = async () => {
+  if (!viewingOrder.value || savingItems.value) return
+
+  const validItems = editableItems.value.filter(item =>
+    item.name.trim() !== '' && item.price >= 0 && item.quantity > 0
+  )
+
+  if (validItems.length === 0) {
+    alert('Debe haber al menos un producto valido')
+    return
+  }
+
+  savingItems.value = true
+  try {
+    await apiClient.put(`/api/admin/orders/${viewingOrder.value.id}`, {
+      data: { items: validItems }
+    })
+    // Update local order data
+    if (viewingOrder.value) {
+      viewingOrder.value.data = { items: validItems }
+    }
+    // Update orders list
+    const orderIndex = orders.value.findIndex(o => o.id === viewingOrder.value?.id)
+    if (orderIndex !== -1) {
+      orders.value[orderIndex].data = { items: validItems }
+    }
+    isEditingItems.value = false
+  } catch (err) {
+    console.error('Error updating order items:', err)
+    alert('Error al guardar los cambios')
+  } finally {
+    savingItems.value = false
+  }
 }
 
 const startEdit = (order: Order) => {
@@ -408,7 +477,7 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in orders" :key="order.id">
+              <tr v-for="order in orders" :key="order.id" :class="{ 'modification-requested-row': order.status === 'MODIFICATION_REQUESTED' }">
                 <td class="id-cell">
                   <span class="id-text">{{ order.id.slice(0, 8) }}...</span>
                   <button class="copy-btn" @click="copyToClipboard(getOrderLink(order.id))" title="Copiar link">
@@ -416,12 +485,20 @@ onMounted(() => {
                   </button>
                 </td>
                 <td>
-                  <span
-                    class="status-badge"
-                    :style="{ backgroundColor: statusColors[order.status] }"
-                  >
-                    {{ statusLabels[order.status] || order.status }}
-                  </span>
+                  <div class="status-cell">
+                    <span
+                      class="status-badge"
+                      :style="{ backgroundColor: statusColors[order.status] }"
+                    >
+                      {{ statusLabels[order.status] || order.status }}
+                    </span>
+                    <span v-if="order.status === 'MODIFICATION_REQUESTED' && order.status_message" class="status-message-indicator" :title="order.status_message">
+                      💬
+                    </span>
+                  </div>
+                  <p v-if="order.status === 'MODIFICATION_REQUESTED' && order.status_message" class="status-message-text">
+                    {{ order.status_message }}
+                  </p>
                 </td>
                 <td>{{ order.eta }}</td>
                 <td>
@@ -708,34 +785,96 @@ onMounted(() => {
     <!-- Order Detail Modal -->
     <div v-if="viewingOrder" class="modal-overlay" @click.self="closeOrderDetail">
       <div class="modal order-modal">
-        <h2>Detalles del Pedido</h2>
+        <h2>{{ isEditingItems ? 'Editar Items del Pedido' : 'Detalles del Pedido' }}</h2>
         <p class="modal-id">ID: {{ viewingOrder.id }}</p>
 
-        <div v-if="viewingOrder.data && viewingOrder.data.items && viewingOrder.data.items.length > 0" class="order-items-section">
-          <h3>Items del Pedido</h3>
-          <div class="items-list">
-            <div v-for="(item, index) in viewingOrder.data.items" :key="index" class="item-row">
-              <div class="item-info">
-                <span class="item-name">{{ item.name }}</span>
-                <span class="item-quantity">Cantidad: {{ item.quantity }}</span>
-              </div>
-              <div class="item-price">
-                {{ formatPrice(item.price * item.quantity) }}
+        <!-- View Mode -->
+        <template v-if="!isEditingItems">
+          <div v-if="viewingOrder.data && viewingOrder.data.items && viewingOrder.data.items.length > 0" class="order-items-section">
+            <h3>Items del Pedido</h3>
+            <div class="items-list">
+              <div v-for="(item, index) in viewingOrder.data.items" :key="index" class="item-row">
+                <div class="item-info">
+                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-quantity">Cantidad: {{ item.quantity }}</span>
+                </div>
+                <div class="item-price">
+                  {{ formatPrice(item.price * item.quantity) }}
+                </div>
               </div>
             </div>
+            <div class="order-total">
+              <span class="total-label">Total:</span>
+              <span class="total-amount">{{ formatPrice(calculateOrderTotal(viewingOrder)) }}</span>
+            </div>
           </div>
-          <div class="order-total">
-            <span class="total-label">Total:</span>
-            <span class="total-amount">{{ formatPrice(calculateOrderTotal(viewingOrder)) }}</span>
+          <div v-else class="no-items-message">
+            <p>Este pedido no tiene items registrados.</p>
           </div>
-        </div>
-        <div v-else class="no-items-message">
-          <p>Este pedido no tiene items registrados.</p>
-        </div>
 
-        <div class="modal-actions">
-          <button class="btn-cancel" @click="closeOrderDetail">Cerrar</button>
-        </div>
+          <div class="modal-actions">
+            <button class="btn-edit" @click="startEditingItems">Editar Items</button>
+            <button class="btn-cancel" @click="closeOrderDetail">Cerrar</button>
+          </div>
+        </template>
+
+        <!-- Edit Mode -->
+        <template v-else>
+          <div class="order-items-section edit-mode">
+            <div class="editable-items-list">
+              <div v-for="(item, index) in editableItems" :key="index" class="editable-item-row">
+                <div class="editable-item-fields">
+                  <input
+                    v-model="item.name"
+                    type="text"
+                    placeholder="Nombre del producto"
+                    class="item-input"
+                  />
+                  <div class="item-number-fields">
+                    <div class="field-group">
+                      <label>Precio</label>
+                      <input
+                        v-model.number="item.price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="item-input"
+                      />
+                    </div>
+                    <div class="field-group">
+                      <label>Cant.</label>
+                      <input
+                        v-model.number="item.quantity"
+                        type="number"
+                        min="1"
+                        class="item-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-remove-item" @click="removeEditableItem(index)" title="Eliminar">
+                  &times;
+                </button>
+              </div>
+
+              <button class="btn-add-item" @click="addEditableItem">
+                + Agregar producto
+              </button>
+            </div>
+
+            <div class="order-total">
+              <span class="total-label">Total:</span>
+              <span class="total-amount">{{ formatPrice(editableItemsTotal()) }}</span>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-cancel" @click="cancelEditingItems" :disabled="savingItems">Cancelar</button>
+            <button class="btn-save" @click="saveItemsChanges" :disabled="savingItems">
+              {{ savingItems ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -1127,6 +1266,115 @@ onMounted(() => {
   font-size: 0.875rem;
 }
 
+/* Edit Mode Styles */
+.edit-mode {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.editable-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.editable-item-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.editable-item-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.item-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.item-number-fields {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.field-group {
+  flex: 1;
+}
+
+.field-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.btn-remove-item {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-remove-item:hover {
+  background: #fecaca;
+}
+
+.btn-add-item {
+  background: #f3f4f6;
+  color: #374151;
+  border: 2px dashed #d1d5db;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-add-item:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.btn-edit {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.btn-edit:hover {
+  background: #059669;
+}
+
 .profile-detail-section {
   margin-bottom: 1.25rem;
 }
@@ -1408,5 +1656,37 @@ onMounted(() => {
 
 .btn-cancel-order:hover:not(:disabled) {
   background: #dc2626;
+}
+
+/* Modification Requested Row Highlight */
+.modification-requested-row {
+  background: #fff7ed !important;
+  border-left: 4px solid #f97316;
+}
+
+.modification-requested-row:hover {
+  background: #ffedd5 !important;
+}
+
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-message-indicator {
+  cursor: help;
+  font-size: 0.875rem;
+}
+
+.status-message-text {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
+  color: #9a3412;
+  font-style: italic;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

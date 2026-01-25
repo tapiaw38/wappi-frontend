@@ -1,5 +1,12 @@
 import { apiClient } from './client'
-import type { Order, CreateOrderInput, UpdateStatusInput, ClaimOrderResponse, MyOrdersResponse } from '../types/order'
+import type { Order, CreateOrderInput, UpdateStatusInput, ClaimOrderResponse, MyOrdersResponse, OrderData } from '../types/order'
+
+export interface UpdateOrderInput {
+  status?: string
+  status_message?: string
+  eta?: string
+  data?: OrderData
+}
 
 export const orderService = {
   async getOrder(id: string): Promise<Order> {
@@ -24,6 +31,11 @@ export const orderService = {
 
   async getMyOrders(): Promise<MyOrdersResponse> {
     const { data } = await apiClient.get<MyOrdersResponse>('/api/orders/my')
+    return data
+  },
+
+  async updateOrder(id: string, input: UpdateOrderInput): Promise<Order> {
+    const { data } = await apiClient.put<Order>(`/api/admin/orders/${id}`, input)
     return data
   }
 }

@@ -9,9 +9,9 @@ const props = defineProps<{
 }>()
 
 const timelineStatuses = computed(() => {
-  // Filter out CANCELLED and PAUSED for the normal timeline
+  // Filter out CANCELLED, PAUSED and MODIFICATION_REQUESTED for the normal timeline
   // They will be shown separately if the order is in those states
-  const normalStatuses = props.order.all_statuses.filter(s => s !== 'CANCELLED' && s !== 'PAUSED')
+  const normalStatuses = props.order.all_statuses.filter(s => s !== 'CANCELLED' && s !== 'PAUSED' && s !== 'MODIFICATION_REQUESTED')
 
   return normalStatuses.map((status, index) => {
     // If allCompleted is true, mark everything as completed
@@ -32,6 +32,7 @@ const timelineStatuses = computed(() => {
 
 const isCancelled = computed(() => props.order.status === 'CANCELLED')
 const isPaused = computed(() => props.order.status === 'PAUSED')
+const isModificationRequested = computed(() => props.order.status === 'MODIFICATION_REQUESTED')
 </script>
 
 <template>
@@ -46,6 +47,12 @@ const isPaused = computed(() => props.order.status === 'PAUSED')
     <div v-else-if="isPaused" class="paused-banner">
       <span class="paused-icon">⏸️</span>
       <span class="paused-text">Pedido Pausado</span>
+    </div>
+
+    <!-- Modification Requested State -->
+    <div v-else-if="isModificationRequested" class="modification-banner">
+      <span class="modification-icon">✏️</span>
+      <span class="modification-text">Modificación Solicitada</span>
     </div>
 
     <!-- Normal Timeline (including Delivered state with all green) -->
@@ -120,6 +127,27 @@ const isPaused = computed(() => props.order.status === 'PAUSED')
   font-size: 1.25rem;
   font-weight: 600;
   color: #d97706;
+}
+
+.modification-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+  border-radius: 12px;
+  border: 2px solid #f97316;
+}
+
+.modification-icon {
+  font-size: 2rem;
+}
+
+.modification-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ea580c;
 }
 
 .timeline {

@@ -64,7 +64,8 @@ export const StatusLabels: Record<string, string> = {
   ON_THE_WAY: 'En Camino',
   DELIVERED: 'Entregado',
   PAUSED: 'Pausado',
-  CANCELLED: 'Cancelado'
+  CANCELLED: 'Cancelado',
+  MODIFICATION_REQUESTED: 'Modificación Solicitada'
 }
 
 export const StatusIcons: Record<string, string> = {
@@ -74,5 +75,6 @@ export const StatusIcons: Record<string, string> = {
   ON_THE_WAY: '🚗',
   DELIVERED: '📦',
   PAUSED: '⏸️',
-  CANCELLED: '❌'
+  CANCELLED: '❌',
+  MODIFICATION_REQUESTED: '✏️'
 }

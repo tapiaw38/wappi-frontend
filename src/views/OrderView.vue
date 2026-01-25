@@ -45,6 +45,18 @@ const hasOrderItems = computed(() => {
   return order.value?.data?.items && order.value.data.items.length > 0
 })
 
+// Check if user can edit order items (only admin)
+const canEditItems = computed(() => {
+  return isUserAdmin.value
+})
+
+// Check if user can request modification (profile owner AND status before ON_THE_WAY)
+const canRequestModification = computed(() => {
+  if (!isProfileOwner.value || !order.value) return false
+  if (isUserAdmin.value) return false // Admin edits directly
+  return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
+})
+
 // Calculate order total
 const orderTotal = computed(() => {
   return calculateOrderTotal(order.value?.data)
@@ -142,6 +154,18 @@ const markAsDelivered = async () => {
   }
 }
 
+// Handle order data update from modal
+const handleOrderDataUpdated = async () => {
+  await fetchOrder()
+  showItemsModal.value = false
+}
+
+// Handle modification request from modal
+const handleModificationRequested = async () => {
+  await fetchOrder()
+  showItemsModal.value = false
+}
+
 onMounted(() => {
   currentUserId.value = getCurrentUserId()
   checkAdminStatus()
@@ -186,12 +210,12 @@ onUnmounted(() => {
         <OrderHeader :order="order" />
 
         <!-- Status Message Alert -->
-        <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED')" 
-             :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : 'alert-cancelled']">
+        <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED' || order.status === 'MODIFICATION_REQUESTED')"
+             :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : order.status === 'MODIFICATION_REQUESTED' ? 'alert-modification' : 'alert-cancelled']">
           <div class="alert-content">
-            <span class="alert-icon">{{ order.status === 'PAUSED' ? '⏸️' : '❌' }}</span>
+            <span class="alert-icon">{{ order.status === 'PAUSED' ? '⏸️' : order.status === 'MODIFICATION_REQUESTED' ? '✏️' : '❌' }}</span>
             <div class="alert-text">
-              <strong>{{ order.status === 'PAUSED' ? 'Tu pedido está pausado' : 'Tu pedido ha sido cancelado' }}</strong>
+              <strong>{{ order.status === 'PAUSED' ? 'Tu pedido está pausado' : order.status === 'MODIFICATION_REQUESTED' ? 'Modificación solicitada' : 'Tu pedido ha sido cancelado' }}</strong>
               <p>{{ order.status_message }}</p>
             </div>
           </div>
@@ -280,7 +304,12 @@ onUnmounted(() => {
       v-if="order?.data"
       :data="order.data"
       :show="showItemsModal"
+      :is-admin="canEditItems"
+      :can-request-modification="canRequestModification"
+      :order-id="order.id"
       @close="showItemsModal = false"
+      @updated="handleOrderDataUpdated"
+      @modification-requested="handleModificationRequested"
     />
   </div>
 </template>
@@ -625,6 +654,11 @@ onUnmounted(() => {
 .alert-cancelled {
   border-left-color: #ef4444;
   background: #fef2f2;
+}
+
+.alert-modification {
+  border-left-color: #f97316;
+  background: #fff7ed;
 }
 
 .alert-content {
