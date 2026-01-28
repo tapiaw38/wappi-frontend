@@ -350,13 +350,6 @@ onUnmounted(() => {
               🔄 Actualizar estado
             </button>
             <button
-              v-if="currentUserId"
-              @click="goToOrdersList"
-              class="orders-list-button"
-            >
-              📋 Mis pedidos
-            </button>
-            <button
               v-if="canMarkDelivered"
               @click="markAsDelivered"
               :disabled="markingDelivered"
