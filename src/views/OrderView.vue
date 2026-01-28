@@ -3,12 +3,17 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { orderService } from '../api/orderService'
 import { profileService } from '../api/profileService'
+import { authService } from '../api/authService'
+import { settingsService } from '../api/settingsService'
 import type { Order } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
+import type { DeliveryFeeResult } from '../types/settings'
+import { isAdmin } from '../types/auth'
 import OrderHeader from '../components/OrderHeader.vue'
 import OrderTimeline from '../components/OrderTimeline.vue'
 import OrderItemsModal from '../components/OrderItemsModal.vue'
+import wappiLogo from '../assets/img/wappi-logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,22 +24,12 @@ const error = ref<string | null>(null)
 const lastUpdated = ref<Date | null>(null)
 const showItemsModal = ref(false)
 const currentUserId = ref<string | null>(null)
+const isUserAdmin = ref(false)
+const markingDelivered = ref(false)
+const deliveryFee = ref<DeliveryFeeResult | null>(null)
+const calculatingDelivery = ref(false)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
-
-// Get current user ID from JWT token
-const getCurrentUserId = (): string | null => {
-  const token = localStorage.getItem('token')
-  if (!token) return null
-
-  try {
-    const payload = token.split('.')[1]
-    const decoded = JSON.parse(atob(payload))
-    return decoded.user_id || null
-  } catch {
-    return null
-  }
-}
 
 // Check if the current user is the owner of the profile
 const isProfileOwner = computed(() => {
@@ -42,21 +37,28 @@ const isProfileOwner = computed(() => {
   return profile.value.user_id === currentUserId.value
 })
 
-// Check if user can request modification (profile owner AND status before ON_THE_WAY)
-const canRequestModification = computed(() => {
-  if (!isProfileOwner.value || !order.value) return false
-  return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
-})
-
-// Check if profile can be edited (CREATED, CONFIRMED or PREPARING)
+// Check if profile can be edited (CREATED, CONFIRMED or PREPARING) AND user is the owner
 const canEditProfile = computed(() => {
   if (!order.value) return false
+  if (!isProfileOwner.value) return false
   return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
 })
 
 // Check if order has items data
 const hasOrderItems = computed(() => {
   return order.value?.data?.items && order.value.data.items.length > 0
+})
+
+// Check if user can edit order items (only admin)
+const canEditItems = computed(() => {
+  return isUserAdmin.value
+})
+
+// Check if user can request modification (profile owner AND status before ON_THE_WAY)
+const canRequestModification = computed(() => {
+  if (!isProfileOwner.value || !order.value) return false
+  if (isUserAdmin.value) return false // Admin edits directly
+  return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
 })
 
 // Calculate order total
@@ -68,6 +70,40 @@ const orderTotal = computed(() => {
 const hasPendingPrices = computed(() => {
   return order.value?.data?.items?.some(item => item.price === 0) ?? false
 })
+
+// Calculate grand total (products + delivery)
+const grandTotal = computed(() => {
+  const productsTotal = orderTotal.value
+  const deliveryTotal = deliveryFee.value?.total_price || 0
+  return productsTotal + deliveryTotal
+})
+
+// Calculate delivery fee
+const calculateDeliveryFee = async () => {
+  if (!profile.value?.location || !order.value?.data?.items) {
+    deliveryFee.value = null
+    return
+  }
+
+  calculatingDelivery.value = true
+  try {
+    const items = order.value.data.items.map(item => ({
+      quantity: item.quantity,
+      weight: item.weight
+    }))
+
+    deliveryFee.value = await settingsService.calculateDeliveryFee({
+      user_latitude: profile.value.location.latitude,
+      user_longitude: profile.value.location.longitude,
+      items
+    })
+  } catch (err) {
+    console.error('Error calculating delivery fee:', err)
+    deliveryFee.value = null
+  } finally {
+    calculatingDelivery.value = false
+  }
+}
 
 const fetchOrder = async () => {
   try {
@@ -100,6 +136,11 @@ watch(() => order.value?.profile_id, (profileId) => {
   }
 }, { immediate: true })
 
+// Calculate delivery fee when profile and order data are available
+watch([() => profile.value?.location, () => order.value?.data?.items], () => {
+  calculateDeliveryFee()
+}, { immediate: true })
+
 const refresh = async () => {
   await fetchOrder()
 }
@@ -110,8 +151,81 @@ const editProfile = () => {
   }
 }
 
+// Get current user ID from JWT token
+const getCurrentUserId = (): string | null => {
+  const token = localStorage.getItem('token')
+  if (!token) return null
+
+  try {
+    // Decode JWT payload (base64)
+    const payload = token.split('.')[1]
+    const decoded = JSON.parse(atob(payload))
+    return decoded.user_id || null
+  } catch {
+    return null
+  }
+}
+
+// Check if admin can mark order as delivered
+const canMarkDelivered = computed(() => {
+  if (!isUserAdmin.value || !order.value) return false
+  return order.value.status !== 'DELIVERED' && order.value.status !== 'CANCELLED'
+})
+
+// Check if order is delivered (all dots should be green)
+const isDelivered = computed(() => {
+  return order.value?.status === 'DELIVERED'
+})
+
+// Check admin status - only if authenticated
+const checkAdminStatus = async () => {
+  if (!authService.isAuthenticated()) {
+    isUserAdmin.value = false
+    return
+  }
+  try {
+    const response = await authService.me()
+    isUserAdmin.value = isAdmin(response.data)
+  } catch {
+    isUserAdmin.value = false
+  }
+}
+
+// Navigate to orders list
+const goToOrdersList = () => {
+  router.push('/my-orders')
+}
+
+// Mark order as delivered
+const markAsDelivered = async () => {
+  if (!order.value || markingDelivered.value) return
+
+  markingDelivered.value = true
+  try {
+    await orderService.updateStatus(order.value.id, { status: 'DELIVERED' })
+    await fetchOrder()
+  } catch (err) {
+    console.error('Error marking order as delivered:', err)
+  } finally {
+    markingDelivered.value = false
+  }
+}
+
+// Handle order data update from modal
+const handleOrderDataUpdated = async () => {
+  await fetchOrder()
+  showItemsModal.value = false
+}
+
+// Handle modification request from modal
+const handleModificationRequested = async () => {
+  await fetchOrder()
+  showItemsModal.value = false
+}
+
 onMounted(() => {
   currentUserId.value = getCurrentUserId()
+  checkAdminStatus()
   fetchOrder()
   // Auto-refresh every 30 seconds
   refreshInterval = setInterval(fetchOrder, 30000)
@@ -127,6 +241,7 @@ onUnmounted(() => {
 <template>
   <div class="order-view">
     <header class="app-header">
+      <img :src="wappiLogo" alt="Wappi" class="header-logo" />
       <h1 class="app-title">📦 Seguimiento de Pedido</h1>
     </header>
 
@@ -150,26 +265,55 @@ onUnmounted(() => {
       <!-- Order Content -->
       <div v-else-if="order" class="order-content">
         <OrderHeader :order="order" />
-        <OrderTimeline :order="order" />
+
+        <!-- Status Message Alert -->
+        <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED' || order.status === 'MODIFICATION_REQUESTED')"
+             :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : order.status === 'MODIFICATION_REQUESTED' ? 'alert-modification' : 'alert-cancelled']">
+          <div class="alert-content">
+            <span class="alert-icon">{{ order.status === 'PAUSED' ? '⏸️' : order.status === 'MODIFICATION_REQUESTED' ? '✏️' : '❌' }}</span>
+            <div class="alert-text">
+              <strong>{{ order.status === 'PAUSED' ? 'Tu pedido está pausado' : order.status === 'MODIFICATION_REQUESTED' ? 'Modificación solicitada' : 'Tu pedido ha sido cancelado' }}</strong>
+              <p>{{ order.status_message }}</p>
+            </div>
+          </div>
+          <button
+            v-if="order.status === 'PAUSED' && canEditProfile"
+            @click="editProfile"
+            class="alert-button"
+          >
+            Editar perfil
+          </button>
+        </div>
+
+        <OrderTimeline :order="order" :all-completed="isDelivered" />
 
         <!-- Order Summary Card -->
         <div v-if="hasOrderItems" class="order-summary-card">
           <div class="summary-header">
             <h3>Resumen del pedido</h3>
-          </div>
-          <div class="summary-content">
-            <div class="summary-info">
-              <span class="items-count">{{ order.data!.items.length }} producto(s)</span>
-              <span class="total-amount">{{ formatPrice(orderTotal) }}</span>
-            </div>
             <button class="view-details-button" @click="showItemsModal = true">
               Ver detalle
             </button>
           </div>
-          <!-- Pending prices message -->
-          <div v-if="hasPendingPrices" class="pending-price-notice">
-            <span class="pending-icon">🔍</span>
-            <p>Estamos buscando el mejor precio para algunos productos. Tu pedido está siendo preparado.</p>
+          <div class="summary-content">
+            <div class="summary-row">
+              <span class="summary-label">Productos ({{ order.data!.items.length }})</span>
+              <span class="summary-value">{{ formatPrice(orderTotal) }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Envío</span>
+              <span class="summary-value" v-if="calculatingDelivery">Calculando...</span>
+              <span class="summary-value" v-else-if="!profile?.location">Pendiente ubicación</span>
+              <span class="summary-value" v-else-if="deliveryFee">{{ formatPrice(deliveryFee.total_price) }}</span>
+              <span class="summary-value" v-else>--</span>
+            </div>
+            <div class="summary-row summary-total">
+              <span class="summary-label">Total</span>
+              <span class="summary-value total-amount">{{ formatPrice(grandTotal) }}</span>
+            </div>
+            <p v-if="hasPendingPrices" class="pending-price-notice">
+              Estamos buscando el mejor precio para algunos productos...
+            </p>
           </div>
         </div>
 
@@ -201,9 +345,26 @@ onUnmounted(() => {
         </div>
 
         <div class="refresh-section">
-          <button @click="refresh" class="refresh-button">
-            🔄 Actualizar estado
-          </button>
+          <div class="action-buttons">
+            <button @click="refresh" class="refresh-button">
+              🔄 Actualizar estado
+            </button>
+            <button
+              v-if="currentUserId"
+              @click="goToOrdersList"
+              class="orders-list-button"
+            >
+              📋 Mis pedidos
+            </button>
+            <button
+              v-if="canMarkDelivered"
+              @click="markAsDelivered"
+              :disabled="markingDelivered"
+              class="delivered-button"
+            >
+              {{ markingDelivered ? 'Marcando...' : '✅ Marcar entregado' }}
+            </button>
+          </div>
           <p v-if="lastUpdated" class="last-updated">
             Última actualización: {{ lastUpdated.toLocaleTimeString('es-ES') }}
           </p>
@@ -212,7 +373,8 @@ onUnmounted(() => {
     </main>
 
     <footer class="app-footer">
-      <p>Powered by WhatsApp IA Assistant</p>
+      <img :src="wappiLogo" alt="Wappi" class="footer-logo" />
+      <p>Powered by Nymia Assistant</p>
     </footer>
 
     <!-- Order Items Modal -->
@@ -220,10 +382,12 @@ onUnmounted(() => {
       v-if="order?.data"
       :data="order.data"
       :show="showItemsModal"
+      :is-admin="canEditItems"
       :can-request-modification="canRequestModification"
       :order-id="order.id"
       @close="showItemsModal = false"
-      @modification-requested="refresh"
+      @updated="handleOrderDataUpdated"
+      @modification-requested="handleModificationRequested"
     />
   </div>
 </template>
@@ -243,6 +407,15 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.header-logo {
+  height: 32px;
+  width: auto;
 }
 
 .app-title {
@@ -345,6 +518,58 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.orders-list-button {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.orders-list-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.orders-list-button:active {
+  transform: translateY(0);
+}
+
+.delivered-button {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.delivered-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.delivered-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.delivered-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .last-updated {
   color: #6b7280;
   font-size: 0.875rem;
@@ -436,34 +661,68 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
 }
 
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
 .summary-header h3 {
   font-size: 0.9rem;
   font-weight: 600;
   color: #374151;
-  margin: 0 0 0.75rem 0;
+  margin: 0;
 }
 
 .summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.summary-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.items-count {
+.summary-label {
   font-size: 0.875rem;
   color: #6b7280;
 }
 
+.summary-value {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.summary-total {
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.25rem;
+}
+
+.summary-total .summary-label {
+  font-weight: 600;
+  color: #374151;
+}
+
 .total-amount {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #667eea;
+}
+
+.pending-price-notice {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem;
+  background: #fffbeb;
+  border-radius: 6px;
+  text-align: center;
 }
 
 .view-details-button {
@@ -487,39 +746,98 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
-.pending-price-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  background: #fffbeb;
-  border-radius: 8px;
-  border: 1px solid #fcd34d;
-}
-
-.pending-icon {
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-.pending-price-notice p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #92400e;
-  line-height: 1.4;
-}
-
 .app-footer {
   background: white;
   padding: 1rem;
   text-align: center;
   border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-logo {
+  height: 24px;
+  width: auto;
+  opacity: 0.7;
 }
 
 .app-footer p {
   color: #9ca3af;
   font-size: 0.875rem;
   margin: 0;
+}
+
+.status-alert {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid;
+}
+
+.alert-paused {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.alert-cancelled {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.alert-modification {
+  border-left-color: #f97316;
+  background: #fff7ed;
+}
+
+.alert-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.alert-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.alert-text {
+  flex: 1;
+}
+
+.alert-text strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.alert-text p {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.alert-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.alert-button:hover {
+  background: #5a67d8;
 }
 </style>

@@ -4,9 +4,11 @@ import { useRouter } from 'vue-router'
 import { profileService } from '../api/profileService'
 import { authService } from '../api/authService'
 import type { Profile } from '../types/profile'
+import { isAdmin } from '../types/auth'
 import MapboxPicker from '../components/MapboxPicker.vue'
 
 const router = useRouter()
+const isUserAdmin = ref(false)
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -143,8 +145,26 @@ const goToAdmin = () => {
   router.push('/admin')
 }
 
+const goToOrders = () => {
+  router.push('/my-orders')
+}
+
+const checkAdminStatus = async () => {
+  if (!authService.isAuthenticated()) {
+    isUserAdmin.value = false
+    return
+  }
+  try {
+    const response = await authService.me()
+    isUserAdmin.value = isAdmin(response.data)
+  } catch {
+    isUserAdmin.value = false
+  }
+}
+
 onMounted(() => {
   loadProfile()
+  checkAdminStatus()
 })
 </script>
 
@@ -153,7 +173,8 @@ onMounted(() => {
     <header class="app-header">
       <h1 class="app-title">Mi Perfil</h1>
       <div class="header-actions">
-        <button @click="goToAdmin" class="admin-button">Admin</button>
+        <button @click="goToOrders" class="orders-button">Mis pedidos</button>
+        <button v-if="isUserAdmin" @click="goToAdmin" class="admin-button">Admin</button>
         <button @click="handleLogout" class="logout-button">Cerrar Sesion</button>
       </div>
     </header>
@@ -297,6 +318,20 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.orders-button {
+  background: #6366f1;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.orders-button:hover {
+  background: #4f46e5;
 }
 
 .admin-button {
