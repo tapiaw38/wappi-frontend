@@ -4,10 +4,7 @@ import { useRouter } from 'vue-router'
 import { profileService } from '../api/profileService'
 import { authService } from '../api/authService'
 import type { Profile } from '../types/profile'
-import type { User } from '../types/auth'
-import { isAdmin } from '../types/auth'
 import MapboxPicker from '../components/MapboxPicker.vue'
-import wappiLogo from '../assets/img/wappi-logo.png'
 
 const router = useRouter()
 
@@ -20,8 +17,6 @@ const success = ref(false)
 const profile = ref<Profile | null>(null)
 const profileId = ref<string | null>(null)
 const isCompleted = ref(false)
-const currentUser = ref<User | null>(null)
-const userIsAdmin = computed(() => isAdmin(currentUser.value))
 
 // Country codes
 const countries = [
@@ -48,7 +43,7 @@ const address = ref('')
 
 // Full phone number with country code
 const fullPhoneNumber = computed(() => {
-  if (!phoneNumber.value || !selectedCountry.value) return ''
+  if (!phoneNumber.value) return ''
   const cleanNumber = phoneNumber.value.replace(/\D/g, '')
   return `${selectedCountry.value.dialCode}${cleanNumber}`
 })
@@ -67,18 +62,10 @@ const parsePhoneNumber = (fullPhone: string) => {
 
 const loadProfile = async () => {
   try {
-    // Fetch current user to check roles
-    try {
-      const meResponse = await authService.me()
-      currentUser.value = meResponse.data
-    } catch {
-      console.error('Error fetching current user')
-    }
-
     // First check if profile is completed
     const checkResult = await profileService.checkCompleted()
     isCompleted.value = checkResult.is_completed
-    profileId.value = checkResult.profile_id || null
+    profileId.value = checkResult.profile_id
 
     if (checkResult.profile_id) {
       // Load full profile
@@ -96,12 +83,9 @@ const loadProfile = async () => {
         }
         address.value = profile.value.location.address
       }
-      error.value = null
-    } else {
-      // Profile doesn't exist yet - show message
-      error.value = checkResult.message || 'Tu perfil aún no ha sido creado. Contacta al administrador para generar un enlace.'
-      profile.value = null
     }
+
+    error.value = null
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
     error.value = axiosError.response?.data?.message || 'No se pudo cargar el perfil'
@@ -120,13 +104,16 @@ const handleSubmit = async () => {
     return
   }
 
+  if (!profileId.value) {
+    error.value = 'No se encontró el perfil'
+    return
+  }
+
   submitting.value = true
   error.value = null
 
   try {
-    // Use createOrUpdateProfile which works for both creating and updating
-    // User ID is extracted from JWT token by the backend
-    await profileService.createOrUpdateProfile({
+    await profileService.updateProfile(profileId.value, {
       phone_number: fullPhoneNumber.value,
       longitude: location.value.lng,
       latitude: location.value.lat,
@@ -141,7 +128,7 @@ const handleSubmit = async () => {
     }, 2000)
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message || 'Error al guardar el perfil'
+    error.value = axiosError.response?.data?.message || 'Error al actualizar el perfil'
   } finally {
     submitting.value = false
   }
@@ -156,10 +143,6 @@ const goToAdmin = () => {
   router.push('/admin')
 }
 
-const goToMyOrders = () => {
-  router.push('/my-orders')
-}
-
 onMounted(() => {
   loadProfile()
 })
@@ -168,13 +151,9 @@ onMounted(() => {
 <template>
   <div class="profile-view">
     <header class="app-header">
-      <div class="header-logo">
-        <img :src="wappiLogo" alt="Wappi" class="logo-img" />
-      </div>
       <h1 class="app-title">Mi Perfil</h1>
       <div class="header-actions">
-        <button @click="goToMyOrders" class="orders-button">Ver ordenes</button>
-        <button v-if="userIsAdmin" @click="goToAdmin" class="admin-button">Admin</button>
+        <button @click="goToAdmin" class="admin-button">Admin</button>
         <button @click="handleLogout" class="logout-button">Cerrar Sesion</button>
       </div>
     </header>
@@ -186,25 +165,30 @@ onMounted(() => {
         <p>Cargando perfil...</p>
       </div>
 
+      <!-- Error State (No Profile) -->
+      <div v-else-if="error && !profile" class="error-state">
+        <div class="error-icon">😕</div>
+        <h2>Perfil no encontrado</h2>
+        <p>{{ error }}</p>
+        <p class="hint">Tu perfil aun no ha sido creado. Contacta al administrador.</p>
+      </div>
+
       <!-- Success State -->
       <div v-else-if="success" class="success-state">
         <div class="success-icon">✅</div>
-        <h2>Perfil {{ profileId ? 'actualizado' : 'creado' }}</h2>
+        <h2>Perfil actualizado</h2>
         <p>Tu informacion ha sido guardada correctamente.</p>
       </div>
 
-      <!-- Profile Form (shown even when no profile exists, so user can create one) -->
+      <!-- Profile Form -->
       <div v-else class="form-container">
-        <div v-if="profileId" class="profile-status" :class="{ 'status-complete': isCompleted, 'status-incomplete': !isCompleted }">
+        <div class="profile-status" :class="{ 'status-complete': isCompleted, 'status-incomplete': !isCompleted }">
           <span v-if="isCompleted">✅ Perfil completo</span>
           <span v-else>⚠️ Perfil incompleto</span>
         </div>
-        <div v-else class="profile-status status-new">
-          <span>📝 Crea tu perfil</span>
-        </div>
 
         <p class="form-intro">
-          {{ profileId ? 'Actualiza tu informacion de entrega' : 'Completa tu informacion de entrega' }}
+          Actualiza tu informacion de entrega
         </p>
 
         <form @submit.prevent="handleSubmit" class="profile-form">
@@ -271,15 +255,14 @@ onMounted(() => {
             :disabled="submitting || !location || !phoneNumber"
           >
             <span v-if="submitting">Guardando...</span>
-            <span v-else>{{ profileId ? 'Guardar cambios' : 'Crear perfil' }}</span>
+            <span v-else>Guardar cambios</span>
           </button>
         </form>
       </div>
     </main>
 
     <footer class="app-footer">
-      <img :src="wappiLogo" alt="Wappi" class="footer-logo" />
-      <p>Powered by Nymia Assistant</p>
+      <p>Powered by WhatsApp IA Assistant</p>
     </footer>
   </div>
 </template>
@@ -304,42 +287,16 @@ onMounted(() => {
   justify-content: space-between;
 }
 
-.header-logo {
-  display: flex;
-  align-items: center;
-}
-
-.logo-img {
-  height: 32px;
-  width: auto;
-}
-
 .app-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
   margin: 0;
-  flex: 1;
-  text-align: center;
 }
 
 .header-actions {
   display: flex;
   gap: 0.5rem;
-}
-
-.orders-button {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.orders-button:hover {
-  background: #059669;
 }
 
 .admin-button {
@@ -426,41 +383,6 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-.order-link-section {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: #f3f4f6;
-  border-radius: 8px;
-  word-break: break-all;
-}
-
-.order-link {
-  color: #667eea;
-  text-decoration: none;
-  font-size: 0.875rem;
-  display: inline-block;
-  margin-right: 0.5rem;
-}
-
-.order-link:hover {
-  text-decoration: underline;
-}
-
-.copy-link-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  vertical-align: middle;
-}
-
-.copy-link-btn:hover {
-  background: #5a67d8;
-}
-
 .form-container {
   animation: fadeIn 0.3s ease;
 }
@@ -486,11 +408,6 @@ onMounted(() => {
 .status-incomplete {
   background: #fef3c7;
   color: #92400e;
-}
-
-.status-new {
-  background: #dbeafe;
-  color: #1e40af;
 }
 
 .form-intro {
@@ -611,54 +528,11 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.create-order-section {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.create-order-button {
-  width: 100%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  border: none;
-  padding: 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
-}
-
-.create-order-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-}
-
-.create-order-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.create-order-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .app-footer {
   background: white;
   padding: 1rem;
   text-align: center;
   border-top: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.footer-logo {
-  height: 24px;
-  width: auto;
-  opacity: 0.7;
 }
 
 .app-footer p {

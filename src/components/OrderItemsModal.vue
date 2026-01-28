@@ -56,7 +56,8 @@ const addItem = () => {
   editableItems.value.push({
     name: '',
     price: 0,
-    quantity: 1
+    quantity: 1,
+    weight: undefined
   })
 }
 
@@ -179,33 +180,26 @@ const handleClose = () => {
 
           <!-- View Mode -->
           <div v-else-if="!isEditing" class="items-list">
-            <div v-for="(item, index) in data.items" :key="index" class="item-row">
+            <div v-for="(item, index) in data.items" :key="index" :class="['item-row', { 'pending-price': item.price === 0 }]">
               <div class="item-info">
                 <span class="item-name">{{ item.name }}</span>
                 <span class="item-quantity">x{{ item.quantity }}</span>
               </div>
-              <div class="item-prices">
+              <div v-if="item.price > 0" class="item-prices">
                 <span class="item-unit-price">{{ formatPrice(item.price) }} c/u</span>
                 <span class="item-subtotal">{{ formatPrice(item.price * item.quantity) }}</span>
               </div>
+              <div v-else class="item-pending">
+                <span class="pending-badge">Precio pendiente</span>
+              </div>
             </div>
+
 
             <div class="total-section">
               <span class="total-label">Total</span>
               <span class="total-value">{{ formatPrice(total) }}</span>
             </div>
 
-            <!-- Info message for users who can request modification -->
-            <div v-if="canRequestModification" class="info-message">
-              <span class="info-icon">ℹ️</span>
-              <p>Puedes solicitar modificaciones a tu pedido mientras no haya sido enviado. Una vez que el pedido esté "En camino", no será posible realizar cambios.</p>
-            </div>
-
-            <!-- Info message for users who cannot request modification -->
-            <div v-if="!isAdmin && !canRequestModification" class="info-message warning">
-              <span class="info-icon">⚠️</span>
-              <p>El pedido ya está en camino o ha sido entregado. No es posible solicitar modificaciones en este momento.</p>
-            </div>
           </div>
 
           <!-- Edit Mode -->
@@ -238,6 +232,16 @@ const handleClose = () => {
                       class="item-input quantity-input"
                     />
                   </div>
+                  <div class="field-group">
+                    <label>Peso (g)</label>
+                    <input
+                      v-model.number="item.weight"
+                      type="number"
+                      min="0"
+                      placeholder="Opcional"
+                      class="item-input weight-input"
+                    />
+                  </div>
                 </div>
               </div>
               <button class="remove-btn" @click="removeItem(index)" title="Eliminar">
@@ -252,6 +256,18 @@ const handleClose = () => {
             <div class="total-section">
               <span class="total-label">Total</span>
               <span class="total-value">{{ formatPrice(total) }}</span>
+            </div>
+
+            <!-- Info message for users who can request modification -->
+            <div v-if="canRequestModification" class="info-message">
+              <span class="info-icon">ℹ️</span>
+              <p>Puedes solicitar modificaciones a tu pedido mientras no haya sido enviado. Una vez que el pedido esté "En camino", no será posible realizar cambios.</p>
+            </div>
+
+            <!-- Info message for users who cannot request modification -->
+            <div v-if="!isAdmin && !canRequestModification" class="info-message warning">
+              <span class="info-icon">⚠️</span>
+              <p>El pedido ya está en camino o ha sido entregado. No es posible solicitar modificaciones en este momento.</p>
             </div>
           </div>
         </div>
@@ -475,6 +491,26 @@ const handleClose = () => {
   font-weight: 600;
   color: #1f2937;
 }
+
+.item-row.pending-price {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.item-pending {
+  display: flex;
+  align-items: center;
+}
+
+.pending-badge {
+  background: #f59e0b;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
 
 /* Edit Mode Styles */
 .edit-mode {

@@ -3,10 +3,15 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: { lng: number; lat: number } | null
   accessToken: string
-}>()
+  defaultCenter?: { lng: number; lat: number }
+  defaultZoom?: number
+}>(), {
+  defaultCenter: () => ({ lng: -58.3816, lat: -34.6037 }), // Buenos Aires default
+  defaultZoom: 13
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: { lng: number; lat: number }): void
@@ -18,21 +23,20 @@ const map = ref<mapboxgl.Map | null>(null)
 const marker = ref<mapboxgl.Marker | null>(null)
 const isLoading = ref(false)
 
-// Default center (can be changed based on user's location)
-const defaultCenter: [number, number] = [-58.3816, -34.6037] // Buenos Aires
-
 const initMap = () => {
   if (!mapContainer.value) return
 
   mapboxgl.accessToken = props.accessToken
 
+  const center: [number, number] = props.modelValue
+    ? [props.modelValue.lng, props.modelValue.lat]
+    : [props.defaultCenter.lng, props.defaultCenter.lat]
+
   map.value = new mapboxgl.Map({
     container: mapContainer.value,
     style: 'mapbox://styles/mapbox/streets-v12',
-    center: props.modelValue
-      ? [props.modelValue.lng, props.modelValue.lat]
-      : defaultCenter,
-    zoom: 14
+    center: center,
+    zoom: props.defaultZoom
   })
 
   // Add navigation controls

@@ -12,7 +12,6 @@ export interface Order {
   id: string
   profile_id: string
   status: string
-  status_message?: string
   status_index: number
   eta: string
   data?: OrderData
@@ -52,20 +51,13 @@ export interface ClaimOrderResponse {
   claimed_at: string
 }
 
-export interface MyOrdersResponse {
-  orders: Order[]
-  total: number
-}
-
 export const StatusLabels: Record<string, string> = {
   CREATED: 'Pedido Creado',
   CONFIRMED: 'Confirmado',
   PREPARING: 'En Preparación',
   ON_THE_WAY: 'En Camino',
   DELIVERED: 'Entregado',
-  PAUSED: 'Pausado',
-  CANCELLED: 'Cancelado',
-  MODIFICATION_REQUESTED: 'Modificación Solicitada'
+  CANCELLED: 'Cancelado'
 }
 
 export const StatusIcons: Record<string, string> = {
@@ -74,7 +66,5 @@ export const StatusIcons: Record<string, string> = {
   PREPARING: '👨‍🍳',
   ON_THE_WAY: '🚗',
   DELIVERED: '📦',
-  PAUSED: '⏸️',
-  CANCELLED: '❌',
-  MODIFICATION_REQUESTED: '✏️'
+  CANCELLED: '❌'
 }

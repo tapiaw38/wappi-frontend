@@ -9,9 +9,10 @@ import type {
 } from '../types/profile'
 
 export const profileService = {
-  async generateLink(): Promise<GenerateLinkResponse> {
-    // User ID is extracted from JWT token by the backend
-    const { data } = await apiClient.post<GenerateLinkResponse>('/api/profiles/generate-link', {})
+  async generateLink(userId: string): Promise<GenerateLinkResponse> {
+    const { data } = await apiClient.post<GenerateLinkResponse>('/api/profiles/generate-link', {
+      user_id: userId
+    })
     return data
   },
 
@@ -37,12 +38,6 @@ export const profileService = {
 
   async checkCompleted(): Promise<CheckCompletedResponse> {
     const { data } = await apiClient.get<CheckCompletedResponse>('/api/profiles/check-completed')
-    return data
-  },
-
-  async createOrUpdateProfile(input: UpdateProfileInput): Promise<Profile> {
-    // User ID is extracted from JWT token by the backend
-    const { data } = await apiClient.post<Profile>('/api/profiles', input)
     return data
   }
 }

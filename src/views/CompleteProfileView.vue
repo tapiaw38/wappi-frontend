@@ -208,7 +208,7 @@ onMounted(() => {
     </main>
 
     <footer class="app-footer">
-      <p>Powered by Nymia Assistant</p>
+      <p>Powered by WhatsApp IA Assistant</p>
     </footer>
   </div>
 </template>

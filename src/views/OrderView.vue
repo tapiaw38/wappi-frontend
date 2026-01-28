@@ -3,15 +3,12 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { orderService } from '../api/orderService'
 import { profileService } from '../api/profileService'
-import { authService } from '../api/authService'
 import type { Order } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
-import { isAdmin } from '../types/auth'
 import OrderHeader from '../components/OrderHeader.vue'
 import OrderTimeline from '../components/OrderTimeline.vue'
 import OrderItemsModal from '../components/OrderItemsModal.vue'
-import wappiLogo from '../assets/img/wappi-logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,10 +19,22 @@ const error = ref<string | null>(null)
 const lastUpdated = ref<Date | null>(null)
 const showItemsModal = ref(false)
 const currentUserId = ref<string | null>(null)
-const isUserAdmin = ref(false)
-const markingDelivered = ref(false)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
+
+// Get current user ID from JWT token
+const getCurrentUserId = (): string | null => {
+  const token = localStorage.getItem('token')
+  if (!token) return null
+
+  try {
+    const payload = token.split('.')[1]
+    const decoded = JSON.parse(atob(payload))
+    return decoded.user_id || null
+  } catch {
+    return null
+  }
+}
 
 // Check if the current user is the owner of the profile
 const isProfileOwner = computed(() => {
@@ -33,10 +42,15 @@ const isProfileOwner = computed(() => {
   return profile.value.user_id === currentUserId.value
 })
 
-// Check if profile can be edited (CREATED, CONFIRMED or PREPARING) AND user is the owner
+// Check if user can request modification (profile owner AND status before ON_THE_WAY)
+const canRequestModification = computed(() => {
+  if (!isProfileOwner.value || !order.value) return false
+  return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
+})
+
+// Check if profile can be edited (CREATED, CONFIRMED or PREPARING)
 const canEditProfile = computed(() => {
   if (!order.value) return false
-  if (!isProfileOwner.value) return false
   return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
 })
 
@@ -45,21 +59,14 @@ const hasOrderItems = computed(() => {
   return order.value?.data?.items && order.value.data.items.length > 0
 })
 
-// Check if user can edit order items (only admin)
-const canEditItems = computed(() => {
-  return isUserAdmin.value
-})
-
-// Check if user can request modification (profile owner AND status before ON_THE_WAY)
-const canRequestModification = computed(() => {
-  if (!isProfileOwner.value || !order.value) return false
-  if (isUserAdmin.value) return false // Admin edits directly
-  return ['CREATED', 'CONFIRMED', 'PREPARING'].includes(order.value.status)
-})
-
 // Calculate order total
 const orderTotal = computed(() => {
   return calculateOrderTotal(order.value?.data)
+})
+
+// Check if there are items with pending price
+const hasPendingPrices = computed(() => {
+  return order.value?.data?.items?.some(item => item.price === 0) ?? false
 })
 
 const fetchOrder = async () => {
@@ -103,72 +110,8 @@ const editProfile = () => {
   }
 }
 
-// Get current user ID from JWT token
-const getCurrentUserId = (): string | null => {
-  const token = localStorage.getItem('token')
-  if (!token) return null
-
-  try {
-    // Decode JWT payload (base64)
-    const payload = token.split('.')[1]
-    const decoded = JSON.parse(atob(payload))
-    return decoded.user_id || null
-  } catch {
-    return null
-  }
-}
-
-// Check if admin can mark order as delivered
-const canMarkDelivered = computed(() => {
-  if (!isUserAdmin.value || !order.value) return false
-  return order.value.status !== 'DELIVERED' && order.value.status !== 'CANCELLED'
-})
-
-// Check if order is delivered (all dots should be green)
-const isDelivered = computed(() => {
-  return order.value?.status === 'DELIVERED'
-})
-
-// Check admin status
-const checkAdminStatus = async () => {
-  try {
-    const response = await authService.me()
-    isUserAdmin.value = isAdmin(response.data)
-  } catch {
-    isUserAdmin.value = false
-  }
-}
-
-// Mark order as delivered
-const markAsDelivered = async () => {
-  if (!order.value || markingDelivered.value) return
-
-  markingDelivered.value = true
-  try {
-    await orderService.updateStatus(order.value.id, { status: 'DELIVERED' })
-    await fetchOrder()
-  } catch (err) {
-    console.error('Error marking order as delivered:', err)
-  } finally {
-    markingDelivered.value = false
-  }
-}
-
-// Handle order data update from modal
-const handleOrderDataUpdated = async () => {
-  await fetchOrder()
-  showItemsModal.value = false
-}
-
-// Handle modification request from modal
-const handleModificationRequested = async () => {
-  await fetchOrder()
-  showItemsModal.value = false
-}
-
 onMounted(() => {
   currentUserId.value = getCurrentUserId()
-  checkAdminStatus()
   fetchOrder()
   // Auto-refresh every 30 seconds
   refreshInterval = setInterval(fetchOrder, 30000)
@@ -184,7 +127,6 @@ onUnmounted(() => {
 <template>
   <div class="order-view">
     <header class="app-header">
-      <img :src="wappiLogo" alt="Wappi" class="header-logo" />
       <h1 class="app-title">📦 Seguimiento de Pedido</h1>
     </header>
 
@@ -208,27 +150,7 @@ onUnmounted(() => {
       <!-- Order Content -->
       <div v-else-if="order" class="order-content">
         <OrderHeader :order="order" />
-
-        <!-- Status Message Alert -->
-        <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED' || order.status === 'MODIFICATION_REQUESTED')"
-             :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : order.status === 'MODIFICATION_REQUESTED' ? 'alert-modification' : 'alert-cancelled']">
-          <div class="alert-content">
-            <span class="alert-icon">{{ order.status === 'PAUSED' ? '⏸️' : order.status === 'MODIFICATION_REQUESTED' ? '✏️' : '❌' }}</span>
-            <div class="alert-text">
-              <strong>{{ order.status === 'PAUSED' ? 'Tu pedido está pausado' : order.status === 'MODIFICATION_REQUESTED' ? 'Modificación solicitada' : 'Tu pedido ha sido cancelado' }}</strong>
-              <p>{{ order.status_message }}</p>
-            </div>
-          </div>
-          <button
-            v-if="order.status === 'PAUSED' && canEditProfile"
-            @click="editProfile"
-            class="alert-button"
-          >
-            Editar perfil
-          </button>
-        </div>
-
-        <OrderTimeline :order="order" :all-completed="isDelivered" />
+        <OrderTimeline :order="order" />
 
         <!-- Order Summary Card -->
         <div v-if="hasOrderItems" class="order-summary-card">
@@ -243,6 +165,11 @@ onUnmounted(() => {
             <button class="view-details-button" @click="showItemsModal = true">
               Ver detalle
             </button>
+          </div>
+          <!-- Pending prices message -->
+          <div v-if="hasPendingPrices" class="pending-price-notice">
+            <span class="pending-icon">🔍</span>
+            <p>Estamos buscando el mejor precio para algunos productos. Tu pedido está siendo preparado.</p>
           </div>
         </div>
 
@@ -274,19 +201,9 @@ onUnmounted(() => {
         </div>
 
         <div class="refresh-section">
-          <div class="action-buttons">
-            <button @click="refresh" class="refresh-button">
-              🔄 Actualizar estado
-            </button>
-            <button
-              v-if="canMarkDelivered"
-              @click="markAsDelivered"
-              :disabled="markingDelivered"
-              class="delivered-button"
-            >
-              {{ markingDelivered ? 'Marcando...' : '✅ Marcar entregado' }}
-            </button>
-          </div>
+          <button @click="refresh" class="refresh-button">
+            🔄 Actualizar estado
+          </button>
           <p v-if="lastUpdated" class="last-updated">
             Última actualización: {{ lastUpdated.toLocaleTimeString('es-ES') }}
           </p>
@@ -295,8 +212,7 @@ onUnmounted(() => {
     </main>
 
     <footer class="app-footer">
-      <img :src="wappiLogo" alt="Wappi" class="footer-logo" />
-      <p>Powered by Nymia Assistant</p>
+      <p>Powered by WhatsApp IA Assistant</p>
     </footer>
 
     <!-- Order Items Modal -->
@@ -304,12 +220,10 @@ onUnmounted(() => {
       v-if="order?.data"
       :data="order.data"
       :show="showItemsModal"
-      :is-admin="canEditItems"
       :can-request-modification="canRequestModification"
       :order-id="order.id"
       @close="showItemsModal = false"
-      @updated="handleOrderDataUpdated"
-      @modification-requested="handleModificationRequested"
+      @modification-requested="refresh"
     />
   </div>
 </template>
@@ -329,15 +243,6 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.header-logo {
-  height: 32px;
-  width: auto;
 }
 
 .app-title {
@@ -438,38 +343,6 @@ onUnmounted(() => {
 .refresh-section {
   margin-top: 1.5rem;
   text-align: center;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.delivered-button {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.delivered-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-}
-
-.delivered-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.delivered-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .last-updated {
@@ -614,98 +487,39 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
+.pending-price-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #fffbeb;
+  border-radius: 8px;
+  border: 1px solid #fcd34d;
+}
+
+.pending-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pending-price-notice p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #92400e;
+  line-height: 1.4;
+}
+
 .app-footer {
   background: white;
   padding: 1rem;
   text-align: center;
   border-top: 1px solid #e5e7eb;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.footer-logo {
-  height: 24px;
-  width: auto;
-  opacity: 0.7;
 }
 
 .app-footer p {
   color: #9ca3af;
   font-size: 0.875rem;
   margin: 0;
-}
-
-.status-alert {
-  background: white;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid;
-}
-
-.alert-paused {
-  border-left-color: #f59e0b;
-  background: #fffbeb;
-}
-
-.alert-cancelled {
-  border-left-color: #ef4444;
-  background: #fef2f2;
-}
-
-.alert-modification {
-  border-left-color: #f97316;
-  background: #fff7ed;
-}
-
-.alert-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.alert-icon {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
-.alert-text {
-  flex: 1;
-}
-
-.alert-text strong {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
-}
-
-.alert-text p {
-  font-size: 0.875rem;
-  color: #4b5563;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.alert-button {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-  width: 100%;
-}
-
-.alert-button:hover {
-  background: #5a67d8;
 }
 </style>
