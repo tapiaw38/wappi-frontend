@@ -6,7 +6,6 @@ import type {
   Settings,
   UpdateSettingsInput,
   CalculateDeliveryInput,
-  DeliveryFeeResult,
 } from '@/types/settings'
 
 export const useSettingsStore = (settingsService: ISettingsService) =>

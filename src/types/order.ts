@@ -2,6 +2,7 @@ export interface OrderItem {
   name: string
   price: number
   quantity: number
+  weight?: number
 }
 
 export interface OrderData {
@@ -13,11 +14,16 @@ export interface Order {
   profile_id: string
   status: string
   status_index: number
+  status_message?: string
   eta: string
   data?: OrderData
   created_at: string
   updated_at: string
   all_statuses: string[]
+}
+
+export interface MyOrdersResponse {
+  orders: Order[]
 }
 
 export function calculateOrderTotal(data?: OrderData): number {

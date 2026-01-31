@@ -25,7 +25,9 @@ export interface IOrderService {
 }
 
 export class OrderService implements IOrderService {
-  constructor(private readonly api: AxiosInstance) {
+  private readonly api: AxiosInstance
+
+  constructor(api: AxiosInstance) {
     this.api = api
   }
 

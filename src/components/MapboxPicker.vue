@@ -18,9 +18,22 @@ const emit = defineEmits<{
   (e: 'address-change', address: string): void
 }>()
 
+interface MapClickEvent {
+  lngLat: { lng: number; lat: number }
+}
+
+interface SimpleMap {
+  addControl: (control: mapboxgl.IControl, position?: string) => void
+  on: (event: string, callback: (e: MapClickEvent | GeolocationPosition) => void) => void
+  flyTo: (options: { center: [number, number]; zoom: number }) => void
+  remove: () => void
+}
+
 const mapContainer = ref<HTMLDivElement | null>(null)
-const map = ref<mapboxgl.Map | null>(null)
-const marker = ref<mapboxgl.Marker | null>(null)
+const map = ref<SimpleMap | null>(null)
+// Using unknown to avoid deep type instantiation issues with mapbox-gl
+const rawMap = ref<unknown>(null)
+const marker = ref<unknown>(null)
 const isLoading = ref(false)
 
 const initMap = () => {
@@ -32,15 +45,17 @@ const initMap = () => {
     ? [props.modelValue.lng, props.modelValue.lat]
     : [props.defaultCenter.lng, props.defaultCenter.lat]
 
-  map.value = new mapboxgl.Map({
+  const newMap = new mapboxgl.Map({
     container: mapContainer.value,
     style: 'mapbox://styles/mapbox/streets-v12',
     center: center,
     zoom: props.defaultZoom
   })
+  map.value = newMap as unknown as SimpleMap
+  rawMap.value = newMap
 
   // Add navigation controls
-  map.value.addControl(new mapboxgl.NavigationControl(), 'top-right')
+  newMap.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
   // Add geolocate control
   const geolocate = new mapboxgl.GeolocateControl({
@@ -50,17 +65,17 @@ const initMap = () => {
     trackUserLocation: false,
     showUserHeading: false
   })
-  map.value.addControl(geolocate, 'top-right')
+  newMap.addControl(geolocate, 'top-right')
 
   // Initialize marker if there's an initial value
   if (props.modelValue) {
-    createMarker(props.modelValue.lng, props.modelValue.lat)
+    createMarker(props.modelValue.lng, props.modelValue.lat, newMap)
   }
 
   // Handle map click to place marker
-  map.value.on('click', (e) => {
+  newMap.on('click', (e) => {
     const { lng, lat } = e.lngLat
-    createMarker(lng, lat)
+    createMarker(lng, lat, newMap)
     emit('update:modelValue', { lng, lat })
     reverseGeocode(lng, lat)
   })
@@ -68,36 +83,37 @@ const initMap = () => {
   // Handle geolocate result
   geolocate.on('geolocate', (e: GeolocationPosition) => {
     const { longitude, latitude } = e.coords
-    createMarker(longitude, latitude)
+    createMarker(longitude, latitude, newMap)
     emit('update:modelValue', { lng: longitude, lat: latitude })
     reverseGeocode(longitude, latitude)
   })
 
   // Trigger geolocate on load if no initial value
-  map.value.on('load', () => {
+  newMap.on('load', () => {
     if (!props.modelValue) {
       geolocate.trigger()
     }
   })
 }
 
-const createMarker = (lng: number, lat: number) => {
-  if (marker.value) {
-    marker.value.remove()
+const createMarker = (lng: number, lat: number, targetMap?: unknown) => {
+  const existingMarker = marker.value
+  if (existingMarker) {
+    (existingMarker as mapboxgl.Marker).remove()
   }
 
-  if (map.value) {
-    marker.value = new mapboxgl.Marker({ color: '#667eea', draggable: true })
+  const mapToUse = targetMap || rawMap.value
+  if (mapToUse) {
+    const newMarker = new mapboxgl.Marker({ color: '#667eea', draggable: true })
       .setLngLat([lng, lat])
-      .addTo(map.value)
+      .addTo(mapToUse as mapboxgl.Map)
+    marker.value = newMarker
 
     // Handle marker drag
-    marker.value.on('dragend', () => {
-      const lngLat = marker.value?.getLngLat()
-      if (lngLat) {
-        emit('update:modelValue', { lng: lngLat.lng, lat: lngLat.lat })
-        reverseGeocode(lngLat.lng, lngLat.lat)
-      }
+    newMarker.on('dragend', () => {
+      const lngLat = newMarker.getLngLat()
+      emit('update:modelValue', { lng: lngLat.lng, lat: lngLat.lat })
+      reverseGeocode(lngLat.lng, lngLat.lat)
     })
   }
 }
@@ -123,8 +139,8 @@ const reverseGeocode = async (lng: number, lat: number) => {
 
 // Watch for external changes to modelValue
 watch(() => props.modelValue, (newVal) => {
-  if (newVal && map.value) {
-    createMarker(newVal.lng, newVal.lat)
+  if (newVal && map.value && rawMap.value) {
+    createMarker(newVal.lng, newVal.lat, rawMap.value as mapboxgl.Map)
     map.value.flyTo({ center: [newVal.lng, newVal.lat], zoom: 16 })
   }
 })

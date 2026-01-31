@@ -18,7 +18,9 @@ export interface IProfileService {
 }
 
 export class ProfileService implements IProfileService {
-  constructor(private readonly api: AxiosInstance) {
+  private readonly api: AxiosInstance
+
+  constructor(api: AxiosInstance) {
     this.api = api
   }
 

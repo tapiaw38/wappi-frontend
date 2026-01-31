@@ -19,7 +19,9 @@ export interface IAuthService {
 }
 
 export class AuthService implements IAuthService {
-  constructor(private readonly api: AxiosInstance) {
+  private readonly api: AxiosInstance
+
+  constructor(api: AxiosInstance) {
     this.api = api
   }
 

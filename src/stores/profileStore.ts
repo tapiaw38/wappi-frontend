@@ -4,8 +4,6 @@ import { useProfileQueries } from '@/queries/profile'
 import type { IProfileService } from '@/services/profile/profileService'
 import type {
   Profile,
-  GenerateLinkResponse,
-  ValidateTokenResponse,
   CompleteProfileInput,
   UpdateProfileInput,
   CheckCompletedResponse,

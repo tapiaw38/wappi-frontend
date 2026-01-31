@@ -217,8 +217,9 @@ const saveItemsChanges = async () => {
     }
     // Update orders list
     const orderIndex = orders.value.findIndex(o => o.id === viewingOrder.value?.id)
-    if (orderIndex !== -1) {
-      orders.value[orderIndex].data = { items: validItems }
+    const orderToUpdate = orderIndex !== -1 ? orders.value[orderIndex] : undefined
+    if (orderToUpdate) {
+      orderToUpdate.data = { items: validItems }
     }
     isEditingItems.value = false
   } catch (err) {

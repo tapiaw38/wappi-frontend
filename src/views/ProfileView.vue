@@ -45,7 +45,7 @@ const address = ref('')
 
 // Full phone number with country code
 const fullPhoneNumber = computed(() => {
-  if (!phoneNumber.value) return ''
+  if (!phoneNumber.value || !selectedCountry.value) return ''
   const cleanNumber = phoneNumber.value.replace(/\D/g, '')
   return `${selectedCountry.value.dialCode}${cleanNumber}`
 })

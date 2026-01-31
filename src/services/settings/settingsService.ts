@@ -13,7 +13,9 @@ export interface ISettingsService {
 }
 
 export class SettingsService implements ISettingsService {
-  constructor(private readonly api: AxiosInstance) {
+  private readonly api: AxiosInstance
+
+  constructor(api: AxiosInstance) {
     this.api = api
   }
 

@@ -158,7 +158,9 @@ const getCurrentUserId = (): string | null => {
 
   try {
     // Decode JWT payload (base64)
-    const payload = token.split('.')[1]
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    const payload = parts[1] as string
     const decoded = JSON.parse(atob(payload))
     return decoded.user_id || null
   } catch {
@@ -191,10 +193,7 @@ const checkAdminStatus = async () => {
   }
 }
 
-// Navigate to orders list
-const goToOrdersList = () => {
-  router.push('/my-orders')
-}
+
 
 // Mark order as delivered
 const markAsDelivered = async () => {

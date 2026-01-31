@@ -6,7 +6,6 @@ import type {
   Order,
   CreateOrderInput,
   UpdateStatusInput,
-  ClaimOrderResponse,
   MyOrdersResponse,
 } from '@/types/order'
 import type { UpdateOrderInput } from '@/services/order/orderService'
