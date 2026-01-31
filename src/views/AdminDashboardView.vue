@@ -4,10 +4,11 @@ import { useRouter } from 'vue-router'
 import { apiClient } from '../api/client'
 import { authClient } from '../api/authClient'
 import { authService } from '../api/authService'
-import wappiLogo from '../assets/img/wappi-logo.png'
 import AdminSettingsPanel from '../components/AdminSettingsPanel.vue'
+import { AppHeader } from '@/components/ui'
 
 const router = useRouter()
+const currentUser = ref<{ first_name?: string; last_name?: string; email?: string } | null>(null)
 
 interface Location {
   id: string
@@ -416,27 +417,39 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const fetchCurrentUser = async () => {
+  if (authService.isAuthenticated()) {
+    try {
+      const response = await authService.me()
+      currentUser.value = response.data
+    } catch {
+      // Silent fail
+    }
+  }
+}
+
 onMounted(() => {
   fetchData()
+  fetchCurrentUser()
 })
 </script>
 
 <template>
   <div class="admin-dashboard">
-    <header class="dashboard-header">
-      <div class="header-content">
-        <img :src="wappiLogo" alt="Wappi" class="header-logo" />
-        <h1>Panel de Administración</h1>
-      </div>
-      <div class="header-actions">
+    <AppHeader 
+      title="Panel de Administración"
+      :is-admin="true"
+      :user-name="currentUser?.first_name || 'Admin'"
+      :user-email="currentUser?.email"
+      @logout="handleLogout"
+    >
+      <template #actions>
         <button @click="fetchData" class="refresh-btn" :disabled="loading">
-          {{ loading ? 'Cargando...' : 'Actualizar' }}
+          <i class="pi pi-refresh"></i>
+          <span>{{ loading ? 'Cargando...' : 'Actualizar' }}</span>
         </button>
-        <button @click="handleLogout" class="logout-btn">
-          Cerrar Sesión
-        </button>
-      </div>
-    </header>
+      </template>
+    </AppHeader>
 
     <nav class="tabs">
       <button
@@ -913,10 +926,12 @@ onMounted(() => {
 .dashboard-header {
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   color: white;
-  padding: 1.5rem 2rem;
+  padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .header-content {
@@ -926,13 +941,13 @@ onMounted(() => {
 }
 
 .header-logo {
-  height: 40px;
+  height: 36px;
   width: auto;
 }
 
 .dashboard-header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 
 .header-actions {
@@ -940,7 +955,73 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
+@media (max-width: 640px) {
+  .dashboard-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 1.1rem;
+  }
+  
+  .header-logo {
+    height: 28px;
+  }
+  
+  .refresh-btn span,
+  .logout-btn span {
+    display: none;
+  }
+}
+
 .refresh-btn {
+  background: var(--bg-white);
+  color: var(--color-primary);
+  border: 1px solid var(--border-light);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--color-primary);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-btn i {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .refresh-btn span {
+    display: none;
+  }
+  
+  .refresh-btn {
+    padding: 0.5rem;
+  }
+}
+
+/* Legacy styles - remove old header styles */
+.dashboard-header,
+.header-content,
+.header-logo,
+.header-actions,
+.logout-btn {
+  display: none;
+}
+
+.old-refresh-btn {
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -978,11 +1059,18 @@ onMounted(() => {
   display: flex;
   background: var(--bg-white);
   border-bottom: 1px solid var(--border-light);
-  padding: 0 1rem;
+  padding: 0 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  padding: 1rem 1.5rem;
+  padding: 0.875rem 1rem;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
@@ -990,6 +1078,8 @@ onMounted(() => {
   font-weight: 500;
   color: var(--color-text-muted);
   transition: all 0.2s;
+  white-space: nowrap;
+  font-size: 0.9375rem;
 }
 
 .tab:hover {
@@ -1001,11 +1091,24 @@ onMounted(() => {
   border-bottom-color: var(--color-primary);
 }
 
+@media (max-width: 640px) {
+  .tab {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.875rem;
+  }
+}
+
 .dashboard-content {
-  padding: 1.5rem;
+  padding: 1rem;
   max-width: 1400px;
   margin: 0 auto;
   color: var(--color-text-primary);
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 0.75rem;
+  }
 }
 
 .loading {
@@ -1040,17 +1143,19 @@ onMounted(() => {
   box-shadow: 0 1px 3px var(--shadow-light);
   overflow-x: auto;
   border: 1px solid var(--border-light);
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
   background: var(--bg-white);
+  min-width: 900px;
 }
 
 .data-table th,
 .data-table td {
-  padding: 1rem;
+  padding: 0.875rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-light);
 }
@@ -1059,14 +1164,15 @@ onMounted(() => {
   background: var(--bg-lighter);
   font-weight: 600;
   color: var(--color-text-primary);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .data-table td {
   color: var(--color-text-primary);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
 }
 
 .data-table tbody tr {
@@ -1075,6 +1181,21 @@ onMounted(() => {
 
 .data-table tbody tr:hover {
   background: var(--surface-hover);
+}
+
+@media (max-width: 768px) {
+  .data-table th,
+  .data-table td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .data-table th {
+    font-size: 0.75rem;
+  }
+  
+  .data-table td {
+    font-size: 0.8125rem;
+  }
 }
 
 .id-cell {
@@ -1480,49 +1601,49 @@ onMounted(() => {
 
 .actions-cell {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   align-items: center;
 }
 
 .edit-btn {
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 0;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  margin-right: 0.5rem;
+  flex-shrink: 0;
 }
 
 .edit-btn:hover {
-  background: #5a67d8;
+  background: var(--color-primary-dark);
   transform: translateY(-1px);
 }
 
 .pause-cancel-btn {
-  background: #f59e0b;
+  background: var(--color-warning);
   color: white;
   border: none;
   padding: 0;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  margin-right: 0.5rem;
+  flex-shrink: 0;
 }
 
 .pause-cancel-btn:hover {
-  background: #d97706;
+  background: var(--color-warning-dark);
   transform: translateY(-1px);
 }
 
@@ -1531,14 +1652,15 @@ onMounted(() => {
   color: white;
   border: none;
   padding: 0;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .share-btn:hover {
@@ -1549,8 +1671,24 @@ onMounted(() => {
 .edit-btn svg,
 .pause-cancel-btn svg,
 .share-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 768px) {
+  .edit-btn,
+  .pause-cancel-btn,
+  .share-btn {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .edit-btn svg,
+  .pause-cancel-btn svg,
+  .share-btn svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 /* Modal */
@@ -1562,24 +1700,44 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modal {
-  background: white;
+  background: var(--bg-white);
   border-radius: 12px;
   padding: 1.5rem;
   width: 100%;
   max-width: 400px;
-  margin: 1rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 480px) {
+  .modal {
+    padding: 1.25rem;
+    max-height: 95vh;
+  }
+  
+  .modal-overlay {
+    padding: 0.5rem;
+  }
 }
 
 .modal h2 {
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 480px) {
+  .modal h2 {
+    font-size: 1.1rem;
+  }
 }
 
 .modal-id {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: 0.875rem;
   margin-bottom: 1.5rem;
   font-family: monospace;
@@ -1593,7 +1751,7 @@ onMounted(() => {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .form-select,

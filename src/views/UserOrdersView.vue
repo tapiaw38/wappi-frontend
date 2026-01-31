@@ -2,11 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { orderService } from '../api/orderService'
+import { authService } from '../api/authService'
 import type { Order } from '../types/order'
 import { StatusLabels, StatusIcons, calculateOrderTotal, formatPrice } from '../types/order'
 import wappiLogo from '../assets/img/wappi-logo.png'
+import { AppHeader } from '@/components/ui'
+import { isAdmin } from '@/types/auth'
 
 const router = useRouter()
+const isUserAdmin = ref(false)
+const currentUser = ref<{ first_name?: string; email?: string } | null>(null)
 const orders = ref<Order[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -58,23 +63,34 @@ const getStatusClass = (status: string) => {
   }
 }
 
+const checkUser = async () => {
+  if (authService.isAuthenticated()) {
+    try {
+      const response = await authService.me()
+      currentUser.value = response.data
+      isUserAdmin.value = isAdmin(response.data)
+    } catch {
+      // Silent fail
+    }
+  }
+}
+
 onMounted(() => {
   fetchOrders()
+  checkUser()
 })
 </script>
 
 <template>
   <div class="orders-view">
-    <header class="app-header">
-      <button @click="goBack" class="back-button">
-        <i class="pi pi-arrow-left back-icon"></i>
-      </button>
-      <div class="header-center">
-        <img :src="wappiLogo" alt="Wappi" class="header-logo" />
-        <h1 class="app-title">Mis Pedidos</h1>
-      </div>
-      <div class="header-spacer"></div>
-    </header>
+    <AppHeader 
+      title="Mis Pedidos"
+      show-back
+      :is-admin="isUserAdmin"
+      :user-name="currentUser?.first_name"
+      :user-email="currentUser?.email"
+      @back="goBack"
+    />
 
     <main class="main-content">
       <!-- Loading State -->
@@ -166,56 +182,7 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
-}
-
-.app-header {
-  background: white;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.back-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  color: #374151;
-  border-radius: 8px;
-  transition: background 0.2s;
-}
-
-.back-button:hover {
-  background: #f3f4f6;
-}
-
-.header-center {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.header-logo {
-  height: 32px;
-  width: auto;
-}
-
-.app-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
-}
-
-.header-spacer {
-  width: 40px;
+  background: var(--surface-ground);
 }
 
 .main-content {
@@ -453,5 +420,45 @@ onMounted(() => {
   color: #9ca3af;
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .app-header {
+    padding: 0.75rem;
+  }
+  
+  .back-button {
+    font-size: 1.25rem;
+    padding: 0.375rem;
+  }
+  
+  .header-logo {
+    height: 24px;
+  }
+  
+  .app-title {
+    font-size: 1.1rem;
+  }
+  
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .order-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .order-date {
+    font-size: 0.6875rem;
+  }
+  
+  .items-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
 }
 </style>

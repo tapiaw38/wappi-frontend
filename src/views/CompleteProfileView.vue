@@ -441,4 +441,27 @@ onMounted(() => {
   font-size: 0.875rem;
   margin: 0;
 }
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .profile-form {
+    gap: 1.25rem;
+  }
+  
+  .phone-input-container {
+    flex-direction: column;
+  }
+  
+  .country-select {
+    width: 100%;
+  }
+  
+  .form-container {
+    padding: 0 0.5rem;
+  }
+}
 </style>

@@ -14,6 +14,7 @@ import OrderHeader from '../components/OrderHeader.vue'
 import OrderTimeline from '../components/OrderTimeline.vue'
 import OrderItemsModal from '../components/OrderItemsModal.vue'
 import wappiLogo from '../assets/img/wappi-logo.png'
+import { AppHeader } from '@/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -239,10 +240,16 @@ onUnmounted(() => {
 
 <template>
   <div class="order-view">
-    <header class="app-header">
-      <img :src="wappiLogo" alt="Wappi" class="header-logo" />
-      <h1 class="app-title"><i class="pi pi-box"></i> Seguimiento de Pedido</h1>
-    </header>
+    <AppHeader 
+      title="Seguimiento de Pedido"
+      :show-logo="true"
+    >
+      <template #logo>
+        <div class="order-header-brand">
+          <img :src="wappiLogo" alt="Wappi" class="header-logo" />
+        </div>
+      </template>
+    </AppHeader>
 
     <main class="main-content">
       <!-- Loading State -->
@@ -426,9 +433,15 @@ onUnmounted(() => {
 .main-content {
   flex: 1;
   padding: 1rem;
-  max-width: 480px;
+  max-width: 640px;
   margin: 0 auto;
   width: 100%;
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0.75rem;
+  }
 }
 
 .loading-state,
@@ -836,5 +849,45 @@ onUnmounted(() => {
 
 .alert-button:hover {
   background: #5a67d8;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .app-header {
+    padding: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .header-logo {
+    height: 24px;
+  }
+  
+  .app-title {
+    font-size: 1.1rem;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .refresh-button,
+  .delivered-button {
+    width: 100%;
+  }
+  
+  .delivery-card,
+  .order-summary-card {
+    padding: 0.875rem;
+  }
+  
+  .status-alert {
+    padding: 0.875rem;
+  }
+  
+  .alert-content {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
 </style>

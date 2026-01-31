@@ -6,9 +6,11 @@ import { authService } from '../api/authService'
 import type { Profile } from '../types/profile'
 import { isAdmin } from '../types/auth'
 import MapboxPicker from '../components/MapboxPicker.vue'
+import { AppHeader } from '@/components/ui'
 
 const router = useRouter()
 const isUserAdmin = ref(false)
+const currentUser = ref<{ first_name?: string; last_name?: string; email?: string } | null>(null)
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -141,14 +143,6 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const goToAdmin = () => {
-  router.push('/admin')
-}
-
-const goToOrders = () => {
-  router.push('/my-orders')
-}
-
 const checkAdminStatus = async () => {
   if (!authService.isAuthenticated()) {
     isUserAdmin.value = false
@@ -162,22 +156,33 @@ const checkAdminStatus = async () => {
   }
 }
 
+const fetchCurrentUser = async () => {
+  if (authService.isAuthenticated()) {
+    try {
+      const response = await authService.me()
+      currentUser.value = response.data
+    } catch {
+      // Silent fail
+    }
+  }
+}
+
 onMounted(() => {
   loadProfile()
   checkAdminStatus()
+  fetchCurrentUser()
 })
 </script>
 
 <template>
   <div class="profile-view">
-    <header class="app-header">
-      <h1 class="app-title">Mi Perfil</h1>
-      <div class="header-actions">
-        <button @click="goToOrders" class="orders-button">Mis pedidos</button>
-        <button v-if="isUserAdmin" @click="goToAdmin" class="admin-button">Admin</button>
-        <button @click="handleLogout" class="logout-button">Cerrar Sesion</button>
-      </div>
-    </header>
+    <AppHeader 
+      title="Mi Perfil"
+      :is-admin="isUserAdmin"
+      :user-name="currentUser?.first_name"
+      :user-email="currentUser?.email"
+      @logout="handleLogout"
+    />
 
     <main class="main-content">
       <!-- Loading State -->
@@ -293,73 +298,7 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
-}
-
-.app-header {
-  background: white;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.app-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.orders-button {
-  background: #6366f1;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.orders-button:hover {
-  background: #4f46e5;
-}
-
-.admin-button {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.admin-button:hover {
-  background: #5a67d8;
-}
-
-.logout-button {
-  background: none;
-  color: #ef4444;
-  border: 1px solid #ef4444;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.logout-button:hover {
-  background: #fef2f2;
+  background: var(--surface-ground);
 }
 
 .main-content {
@@ -582,5 +521,45 @@ onMounted(() => {
   color: #9ca3af;
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .app-header {
+    padding: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .app-title {
+    font-size: 1.1rem;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .orders-button,
+  .admin-button {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+  
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .profile-form {
+    gap: 1.25rem;
+  }
+  
+  .phone-input-container {
+    flex-direction: column;
+  }
+  
+  .country-select {
+    width: 100%;
+  }
 }
 </style>

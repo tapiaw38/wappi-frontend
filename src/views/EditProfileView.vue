@@ -540,4 +540,41 @@ onMounted(() => {
   font-size: 0.875rem;
   margin: 0;
 }
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .app-header {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  
+  .back-button {
+    font-size: 0.875rem;
+    padding: 0.375rem;
+  }
+  
+  .app-title {
+    font-size: 1.1rem;
+  }
+  
+  .main-content {
+    padding: 0.75rem;
+  }
+  
+  .profile-form {
+    gap: 1.25rem;
+  }
+  
+  .phone-input-container {
+    flex-direction: column;
+  }
+  
+  .country-select {
+    width: 100%;
+  }
+  
+  .button-group {
+    flex-direction: column;
+  }
+}
 </style>
