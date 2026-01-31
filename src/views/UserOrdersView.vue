@@ -67,7 +67,7 @@ onMounted(() => {
   <div class="orders-view">
     <header class="app-header">
       <button @click="goBack" class="back-button">
-        <span class="back-icon">&larr;</span>
+        <i class="pi pi-arrow-left back-icon"></i>
       </button>
       <div class="header-center">
         <img :src="wappiLogo" alt="Wappi" class="header-logo" />
@@ -85,7 +85,7 @@ onMounted(() => {
 
       <!-- Error State -->
       <div v-else-if="error" class="error-state">
-        <div class="error-icon">😕</div>
+        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
         <h2>Error</h2>
         <p>{{ error }}</p>
         <button @click="fetchOrders" class="retry-button">
@@ -95,7 +95,7 @@ onMounted(() => {
 
       <!-- Empty State -->
       <div v-else-if="orders.length === 0" class="empty-state">
-        <div class="empty-icon">📦</div>
+        <div class="empty-icon"><i class="pi pi-box"></i></div>
         <h2>Sin pedidos</h2>
         <p>Aun no tienes pedidos realizados</p>
       </div>

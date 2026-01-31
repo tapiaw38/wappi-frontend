@@ -188,7 +188,7 @@ onMounted(() => {
 
       <!-- Error State (No Profile) -->
       <div v-else-if="error && !profile" class="error-state">
-        <div class="error-icon">😕</div>
+        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
         <h2>Perfil no encontrado</h2>
         <p>{{ error }}</p>
         <p class="hint">Tu perfil aun no ha sido creado. Contacta al administrador.</p>
@@ -196,7 +196,7 @@ onMounted(() => {
 
       <!-- Success State -->
       <div v-else-if="success" class="success-state">
-        <div class="success-icon">✅</div>
+        <div class="success-icon"><i class="pi pi-check-circle"></i></div>
         <h2>Perfil actualizado</h2>
         <p>Tu informacion ha sido guardada correctamente.</p>
       </div>
@@ -204,8 +204,8 @@ onMounted(() => {
       <!-- Profile Form -->
       <div v-else class="form-container">
         <div class="profile-status" :class="{ 'status-complete': isCompleted, 'status-incomplete': !isCompleted }">
-          <span v-if="isCompleted">✅ Perfil completo</span>
-          <span v-else>⚠️ Perfil incompleto</span>
+          <span v-if="isCompleted"><i class="pi pi-check-circle"></i> Perfil completo</span>
+          <span v-else><i class="pi pi-exclamation-triangle"></i> Perfil incompleto</span>
         </div>
 
         <p class="form-intro">
@@ -261,7 +261,7 @@ onMounted(() => {
 
           <!-- Coordinates display -->
           <div v-if="location" class="coordinates-display">
-            <span>📍 {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}</span>
+            <span><i class="pi pi-map-marker"></i> {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}</span>
           </div>
 
           <!-- Error message -->

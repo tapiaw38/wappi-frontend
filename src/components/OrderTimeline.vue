@@ -22,7 +22,7 @@ const timelineStatuses = computed(() => {
     return {
       status,
       label: StatusLabels[status] || status,
-      icon: StatusIcons[status] || '⚪',
+      icon: StatusIcons[status] || 'pi-circle',
       isCurrent,
       isCompleted,
       isPending
@@ -39,19 +39,19 @@ const isModificationRequested = computed(() => props.order.status === 'MODIFICAT
   <div class="timeline-container">
     <!-- Cancelled State -->
     <div v-if="isCancelled" class="status-banner cancelled-banner">
-      <span class="banner-icon">❌</span>
+      <span class="banner-icon"><i class="pi pi-times-circle"></i></span>
       <span class="banner-text">Pedido Cancelado</span>
     </div>
 
     <!-- Paused State -->
     <div v-else-if="isPaused" class="status-banner paused-banner">
-      <span class="banner-icon">⏸️</span>
+      <span class="banner-icon"><i class="pi pi-pause"></i></span>
       <span class="banner-text">Pedido Pausado</span>
     </div>
 
     <!-- Modification Requested State -->
     <div v-else-if="isModificationRequested" class="status-banner modification-banner">
-      <span class="banner-icon">✏️</span>
+      <span class="banner-icon"><i class="pi pi-pencil"></i></span>
       <span class="banner-text">Modificación Solicitada</span>
     </div>
 
@@ -69,8 +69,8 @@ const isModificationRequested = computed(() => props.order.status === 'MODIFICAT
       >
         <div class="timeline-marker">
           <div class="marker-circle">
-            <span v-if="item.isCompleted" class="check-icon">✓</span>
-            <span v-else class="status-icon">{{ item.icon }}</span>
+            <span v-if="item.isCompleted" class="check-icon"><i class="pi pi-check"></i></span>
+            <i v-else :class="['pi', item.icon, 'status-icon']"></i>
           </div>
           <div v-if="index < timelineStatuses.length - 1" class="marker-line"></div>
         </div>

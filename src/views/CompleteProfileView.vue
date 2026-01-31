@@ -110,7 +110,7 @@ onMounted(() => {
 
       <!-- Error State (Invalid Token) -->
       <div v-else-if="error && !userId" class="error-state">
-        <div class="error-icon">🔗</div>
+        <div class="error-icon"><i class="pi pi-link"></i></div>
         <h2>Enlace inválido</h2>
         <p>{{ error }}</p>
         <p class="hint">Solicita un nuevo enlace por WhatsApp</p>
@@ -118,7 +118,7 @@ onMounted(() => {
 
       <!-- Success State -->
       <div v-else-if="success" class="success-state">
-        <div class="success-icon">✅</div>
+        <div class="success-icon"><i class="pi pi-check-circle"></i></div>
         <h2>¡Perfil completado!</h2>
         <p>Tu información ha sido guardada correctamente.</p>
         <p class="hint">Ya puedes cerrar esta página</p>
@@ -186,7 +186,7 @@ onMounted(() => {
 
           <!-- Coordinates display -->
           <div v-if="location" class="coordinates-display">
-            <span>📍 {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}</span>
+            <span><i class="pi pi-map-marker"></i> {{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}</span>
           </div>
 
           <!-- Error message -->

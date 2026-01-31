@@ -4,7 +4,7 @@
 <template>
   <div class="not-found">
     <div class="content">
-      <div class="icon">🔍</div>
+      <div class="icon"><i class="pi pi-search"></i></div>
       <h1>Página no encontrada</h1>
       <p>El enlace que seguiste no existe o ha expirado.</p>
       <p class="hint">Verifica el link que recibiste por WhatsApp</p>

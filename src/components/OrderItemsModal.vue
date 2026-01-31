@@ -142,7 +142,7 @@ const handleClose = () => {
         <div class="modal-header">
           <h2>{{ isEditing ? 'Editar pedido' : isRequestingModification ? 'Solicitar modificación' : 'Detalle del pedido' }}</h2>
           <button class="close-button" @click="handleClose">
-            &times;
+            <i class="pi pi-times"></i>
           </button>
         </div>
 
@@ -173,7 +173,7 @@ const handleClose = () => {
             </div>
 
             <div class="info-message">
-              <span class="info-icon">ℹ️</span>
+              <span class="info-icon"><i class="pi pi-info-circle"></i></span>
               <p>Tu pedido quedará en estado "Modificación Solicitada" hasta que el administrador procese tu solicitud.</p>
             </div>
           </div>
@@ -245,7 +245,7 @@ const handleClose = () => {
                 </div>
               </div>
               <button class="remove-btn" @click="removeItem(index)" title="Eliminar">
-                &times;
+                <i class="pi pi-times"></i>
               </button>
             </div>
 
@@ -260,13 +260,13 @@ const handleClose = () => {
 
             <!-- Info message for users who can request modification -->
             <div v-if="canRequestModification" class="info-message">
-              <span class="info-icon">ℹ️</span>
+              <span class="info-icon"><i class="pi pi-info-circle"></i></span>
               <p>Puedes solicitar modificaciones a tu pedido mientras no haya sido enviado. Una vez que el pedido esté "En camino", no será posible realizar cambios.</p>
             </div>
 
             <!-- Info message for users who cannot request modification -->
             <div v-if="!isAdmin && !canRequestModification" class="info-message warning">
-              <span class="info-icon">⚠️</span>
+              <span class="info-icon"><i class="pi pi-exclamation-triangle"></i></span>
               <p>El pedido ya está en camino o ha sido entregado. No es posible solicitar modificaciones en este momento.</p>
             </div>
           </div>
@@ -299,7 +299,7 @@ const handleClose = () => {
             </button>
             <!-- User can request modification -->
             <button v-if="canRequestModification" class="request-btn" @click="startRequestingModification">
-              ✏️ Solicitar modificación
+              <i class="pi pi-pencil"></i> Solicitar modificación
             </button>
             <button class="close-btn" @click="handleClose">Cerrar</button>
           </template>

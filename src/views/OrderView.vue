@@ -242,7 +242,7 @@ onUnmounted(() => {
   <div class="order-view">
     <header class="app-header">
       <img :src="wappiLogo" alt="Wappi" class="header-logo" />
-      <h1 class="app-title">📦 Seguimiento de Pedido</h1>
+      <h1 class="app-title"><i class="pi pi-box"></i> Seguimiento de Pedido</h1>
     </header>
 
     <main class="main-content">
@@ -254,7 +254,7 @@ onUnmounted(() => {
 
       <!-- Error State -->
       <div v-else-if="error" class="error-state">
-        <div class="error-icon">😕</div>
+        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
         <h2>Pedido no encontrado</h2>
         <p>{{ error }}</p>
         <button @click="refresh" class="retry-button">
@@ -270,7 +270,11 @@ onUnmounted(() => {
         <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED' || order.status === 'MODIFICATION_REQUESTED')"
              :class="['status-alert', order.status === 'PAUSED' ? 'alert-paused' : order.status === 'MODIFICATION_REQUESTED' ? 'alert-modification' : 'alert-cancelled']">
           <div class="alert-content">
-            <span class="alert-icon">{{ order.status === 'PAUSED' ? '⏸️' : order.status === 'MODIFICATION_REQUESTED' ? '✏️' : '❌' }}</span>
+            <span class="alert-icon">
+              <i v-if="order.status === 'PAUSED'" class="pi pi-pause"></i>
+              <i v-else-if="order.status === 'MODIFICATION_REQUESTED'" class="pi pi-pencil"></i>
+              <i v-else class="pi pi-times-circle"></i>
+            </span>
             <div class="alert-text">
               <strong>{{ order.status === 'PAUSED' ? 'Tu pedido está pausado' : order.status === 'MODIFICATION_REQUESTED' ? 'Modificación solicitada' : 'Tu pedido ha sido cancelado' }}</strong>
               <p>{{ order.status_message }}</p>
@@ -331,11 +335,11 @@ onUnmounted(() => {
           </div>
           <div class="delivery-info">
             <div class="info-row">
-              <span class="info-icon">📍</span>
+              <span class="info-icon"><i class="pi pi-map-marker"></i></span>
               <span class="info-text">{{ profile.location?.address || 'Sin dirección' }}</span>
             </div>
             <div class="info-row">
-              <span class="info-icon">📞</span>
+              <span class="info-icon"><i class="pi pi-phone"></i></span>
               <span class="info-text">{{ profile.phone_number }}</span>
             </div>
           </div>
@@ -355,7 +359,8 @@ onUnmounted(() => {
               :disabled="markingDelivered"
               class="delivered-button"
             >
-              {{ markingDelivered ? 'Marcando...' : '✅ Marcar entregado' }}
+              <i v-if="!markingDelivered" class="pi pi-check-circle"></i>
+              {{ markingDelivered ? 'Marcando...' : 'Marcar entregado' }}
             </button>
           </div>
           <p v-if="lastUpdated" class="last-updated">

@@ -19,7 +19,7 @@ const formattedDate = computed(() => {
 })
 
 const currentStatusLabel = computed(() => StatusLabels[props.order.status] || props.order.status)
-const currentStatusIcon = computed(() => StatusIcons[props.order.status] || 'ðŸ“¦')
+const currentStatusIcon = computed(() => StatusIcons[props.order.status] || 'pi-box')
 </script>
 
 <template>
@@ -30,7 +30,7 @@ const currentStatusIcon = computed(() => StatusIcons[props.order.status] || 'ðŸ“
     </div>
 
     <div class="order-status-badge">
-      <span class="status-icon">{{ currentStatusIcon }}</span>
+      <i :class="['pi', currentStatusIcon, 'status-icon']"></i>
       <span class="status-text">{{ currentStatusLabel }}</span>
     </div>
 

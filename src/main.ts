@@ -1,8 +1,21 @@
+import '@/assets/main.css'
+
 import { createApp } from 'vue'
-import './style.css'
+import { createPinia } from 'pinia'
+import { VueQueryPlugin } from '@tanstack/vue-query'
+
 import App from './App.vue'
 import router from './router'
 
+import services from './services'
+
+import 'primeicons/primeicons.css'
+
 const app = createApp(App)
+
+app.use(createPinia())
+app.use(VueQueryPlugin)
 app.use(router)
+app.provide('services', services)
+
 app.mount('#app')

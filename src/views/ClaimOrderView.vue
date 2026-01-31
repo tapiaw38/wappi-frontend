@@ -86,7 +86,7 @@ onMounted(() => {
         <!-- Success State -->
         <div v-else-if="claimedOrder" class="state-container success">
           <div class="state-icon success-icon">
-            <span>&#10003;</span>
+            <i class="pi pi-check-circle"></i>
           </div>
           <h2 class="state-title">Orden Reclamada</h2>
           <p class="state-description">La orden ha sido vinculada a tu cuenta exitosamente.</p>
@@ -99,7 +99,8 @@ onMounted(() => {
             <div class="detail-row">
               <span class="detail-label">Estado</span>
               <span class="detail-value status-badge">
-                {{ StatusIcons[claimedOrder.status] }} {{ StatusLabels[claimedOrder.status] }}
+                <i :class="['pi', StatusIcons[claimedOrder.status] || 'pi-box']"></i>
+                {{ StatusLabels[claimedOrder.status] }}
               </span>
             </div>
             <div v-if="claimedOrder.eta" class="detail-row">
@@ -121,7 +122,7 @@ onMounted(() => {
         <!-- Error State -->
         <div v-else-if="error" class="state-container error">
           <div class="state-icon error-icon">
-            <span>!</span>
+            <i class="pi pi-exclamation-triangle"></i>
           </div>
           <h2 class="state-title">No se pudo reclamar</h2>
           <p class="state-description">{{ error }}</p>

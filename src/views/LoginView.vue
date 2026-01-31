@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { authService } from '../api/authService'
+import { useAuth } from '@/composables/useAuth'
 import GoogleButton from '../components/GoogleButton.vue'
-import type { User } from '../types/auth'
 import wappiLogo from '../assets/img/wappi-logo.png'
 
 const router = useRouter()
 const route = useRoute()
 
-// Get redirect URL from query params
+const {
+  loginUser,
+  registerUser,
+  isLoginPending,
+  isRegisterPending,
+  loginError,
+  registerError,
+} = useAuth()
+
 const redirectUrl = computed(() => {
   return (route.query.redirect as string) || '/profile'
 })
@@ -17,17 +24,14 @@ const redirectUrl = computed(() => {
 type ViewMode = 'login' | 'register'
 const currentView = ref<ViewMode>('login')
 
-// Form state
 const email = ref('')
 const password = ref('')
 const firstName = ref('')
 const lastName = ref('')
 const confirmPassword = ref('')
 
-// UI state
-const loading = ref(false)
-const error = ref<string | null>(null)
-const user = ref<User | null>(null)
+const loading = computed(() => isLoginPending.value || isRegisterPending.value)
+const error = computed(() => loginError.value?.message || registerError.value?.message || null)
 
 // Validation
 const emailError = computed(() => {
@@ -65,8 +69,6 @@ const isRegisterValid = computed(() => {
 
 const toggleView = () => {
   currentView.value = currentView.value === 'login' ? 'register' : 'login'
-  error.value = null
-  // Reset form
   email.value = ''
   password.value = ''
   firstName.value = ''
@@ -77,77 +79,46 @@ const toggleView = () => {
 const handleLogin = async () => {
   if (!isLoginValid.value) return
 
-  loading.value = true
-  error.value = null
-
   try {
-    const response = await authService.login({
+    await loginUser({
       email: email.value,
-      password: password.value
+      password: password.value,
     })
-
-    authService.setToken(response.token)
-    user.value = response.data
-
-    // Redirect to intended destination or profile
     await router.push(redirectUrl.value)
-  } catch (err: unknown) {
-    const axiosError = err as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message || 'Error al iniciar sesion. Verifica tus credenciales.'
-  } finally {
-    loading.value = false
+  } catch (err) {
+    console.error('Login error:', err)
   }
 }
 
 const handleRegister = async () => {
   if (!isRegisterValid.value) return
 
-  loading.value = true
-  error.value = null
-
   try {
-    await authService.register({
+    await registerUser({
       first_name: firstName.value,
       last_name: lastName.value,
       email: email.value,
-      password: password.value
+      password: password.value,
     })
-
-    // After registration, switch to login
     currentView.value = 'login'
-    error.value = null
     password.value = ''
     confirmPassword.value = ''
     firstName.value = ''
     lastName.value = ''
-  } catch (err: unknown) {
-    const axiosError = err as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message || 'Error al registrarse. Intenta nuevamente.'
-  } finally {
-    loading.value = false
+  } catch (err) {
+    console.error('Register error:', err)
   }
 }
 
 const handleGoogleLogin = async (code: string) => {
-  loading.value = true
-  error.value = null
-
   try {
-    const response = await authService.login({
+    await loginUser({
       ssoType: 'google',
-      ssoCode: code
+      ssoCode: code,
     })
-
-    authService.setToken(response.token)
-    user.value = response.data
-
-    // Redirect to intended destination or profile
     await router.push(redirectUrl.value)
-  } catch (err: unknown) {
-    const axiosError = err as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message || 'Error al iniciar sesion con Google.'
-  } finally {
-    loading.value = false
+  } catch (err) {
+    console.error('Google login error:', err)
   }
 }
 </script>
@@ -174,8 +145,8 @@ const handleGoogleLogin = async (code: string) => {
       <div class="login-card">
         <div class="form-header">
           <div class="form-icon">
-            <span v-if="currentView === 'login'">&#x1F511;</span>
-            <span v-else>&#x1F464;</span>
+            <i v-if="currentView === 'login'" class="pi pi-lock"></i>
+            <i v-else class="pi pi-user-plus"></i>
           </div>
           <h2 class="form-title">
             {{ currentView === 'login' ? 'Iniciar Sesion' : 'Crear Cuenta' }}
@@ -350,7 +321,7 @@ const handleGoogleLogin = async (code: string) => {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-background);
 }
 
 /* Animated Background */
@@ -371,7 +342,7 @@ const handleGoogleLogin = async (code: string) => {
 
 .shape {
   position: absolute;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-transparent);
   animation: float 6s ease-in-out infinite;
   border-radius: 50%;
 }
@@ -431,7 +402,7 @@ const handleGoogleLogin = async (code: string) => {
 
 .login-subtitle {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-white-muted);
   margin: 0;
 }
 
@@ -439,9 +410,9 @@ const handleGoogleLogin = async (code: string) => {
 .login-card {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  box-shadow: 0 25px 50px var(--shadow-heavy);
   animation: slideUp 0.5s ease-out;
 }
 
@@ -465,13 +436,13 @@ const handleGoogleLogin = async (code: string) => {
 .form-icon {
   width: 3rem;
   height: 3rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-md);
   margin: 0 auto 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-primary);
 }
 
 .form-icon span {
@@ -480,8 +451,8 @@ const handleGoogleLogin = async (code: string) => {
 
 .form-title {
   font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -505,60 +476,60 @@ const handleGoogleLogin = async (code: string) => {
 }
 
 .form-group label {
-  font-weight: 500;
-  color: #374151;
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
 }
 
 .form-input {
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--vt-c-gray-300);
+  border-radius: var(--radius-md);
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
 }
 
 .form-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .form-input.input-error {
-  border-color: #ef4444;
+  border-color: var(--color-danger);
 }
 
 .error-text {
-  color: #ef4444;
+  color: var(--color-danger);
   font-size: 0.75rem;
 }
 
 .form-error {
-  color: #dc2626;
+  color: var(--color-danger-dark);
   font-size: 0.875rem;
   text-align: center;
-  padding: 0.75rem;
-  background: #fef2f2;
-  border-radius: 8px;
-  border: 1px solid #fecaca;
+  padding: var(--spacing-sm);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-danger-light);
 }
 
 .submit-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--gradient-primary);
+  color: var(--color-text-white);
   border: none;
-  padding: 0.875rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-semibold);
   font-size: 1rem;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
-  margin-top: 0.5rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  margin-top: var(--spacing-xs);
 }
 
 .submit-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-primary);
 }
 
 .submit-button:active:not(:disabled) {
@@ -573,13 +544,13 @@ const handleGoogleLogin = async (code: string) => {
 /* Form Footer */
 .form-footer {
   text-align: center;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--vt-c-gray-200);
 }
 
 .toggle-text {
-  color: #6b7280;
+  color: var(--vt-c-gray-500);
   font-size: 0.875rem;
   margin: 0;
 }
@@ -587,11 +558,11 @@ const handleGoogleLogin = async (code: string) => {
 .toggle-button {
   background: none;
   border: none;
-  color: #667eea;
-  font-weight: 600;
+  color: var(--color-primary);
+  font-weight: var(--font-semibold);
   cursor: pointer;
   padding: 0;
-  margin-left: 0.25rem;
+  margin-left: var(--spacing-xs);
 }
 
 .toggle-button:hover {
@@ -612,13 +583,13 @@ const handleGoogleLogin = async (code: string) => {
   left: 0;
   right: 0;
   height: 1px;
-  background: #e5e7eb;
+  background: var(--vt-c-gray-200);
 }
 
 .divider-text {
   background: rgba(255, 255, 255, 0.95);
-  padding: 0 1rem;
-  color: #6b7280;
+  padding: 0 var(--spacing-md);
+  color: var(--vt-c-gray-500);
   font-size: 0.875rem;
   position: relative;
   z-index: 1;
@@ -645,22 +616,22 @@ const handleGoogleLogin = async (code: string) => {
 }
 
 .loading-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
+  background: var(--bg-white);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-xl);
   text-align: center;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px var(--shadow-heavy);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #667eea;
+  border: 4px solid var(--vt-c-gray-200);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -670,8 +641,8 @@ const handleGoogleLogin = async (code: string) => {
 }
 
 .loading-text {
-  color: #374151;
-  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
   margin: 0;
 }
 

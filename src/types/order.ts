@@ -61,10 +61,10 @@ export const StatusLabels: Record<string, string> = {
 }
 
 export const StatusIcons: Record<string, string> = {
-  CREATED: '📝',
-  CONFIRMED: '✅',
-  PREPARING: '👨‍🍳',
-  ON_THE_WAY: '🚗',
-  DELIVERED: '📦',
-  CANCELLED: '❌'
+  CREATED: 'pi-file-edit',
+  CONFIRMED: 'pi-check-circle',
+  PREPARING: 'pi-cog',
+  ON_THE_WAY: 'pi-truck',
+  DELIVERED: 'pi-box',
+  CANCELLED: 'pi-times-circle'
 }

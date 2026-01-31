@@ -180,7 +180,7 @@ onMounted(() => {
         </div>
 
         <button type="button" class="btn-secondary" @click="useCurrentLocation('business')">
-          📍 Usar mi ubicación actual
+          <i class="pi pi-map-marker"></i> Usar mi ubicación actual
         </button>
       </section>
 
@@ -225,7 +225,7 @@ onMounted(() => {
 
         <div class="button-group">
           <button type="button" class="btn-secondary" @click="useCurrentLocation('default_map')">
-            📍 Usar mi ubicación actual
+            <i class="pi pi-map-marker"></i> Usar mi ubicación actual
           </button>
           <button type="button" class="btn-secondary" @click="copyBusinessToDefault">
             📋 Copiar ubicación del negocio

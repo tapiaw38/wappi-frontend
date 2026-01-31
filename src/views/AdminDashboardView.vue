@@ -765,7 +765,7 @@ onMounted(() => {
                   rel="noopener noreferrer"
                   class="maps-link"
                 >
-                  📍 Ver en Google Maps
+                  <i class="pi pi-map-marker"></i> Ver en Google Maps
                 </a>
               </span>
             </div>
@@ -876,7 +876,7 @@ onMounted(() => {
                   </div>
                 </div>
                 <button class="btn-remove-item" @click="removeEditableItem(index)" title="Eliminar">
-                  &times;
+                  <i class="pi pi-times"></i>
                 </button>
               </div>
 
