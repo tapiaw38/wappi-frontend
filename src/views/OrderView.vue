@@ -394,13 +394,13 @@ onUnmounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--surface-ground);
 }
 
 .app-header {
-  background: white;
+  background: var(--bg-white);
   padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px var(--shadow-light);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -418,7 +418,7 @@ onUnmounted(() => {
 .app-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   text-align: center;
   margin: 0;
 }
@@ -444,8 +444,8 @@ onUnmounted(() => {
 .spinner {
   width: 48px;
   height: 48px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #667eea;
+  border: 4px solid var(--border-light);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -463,12 +463,12 @@ onUnmounted(() => {
 }
 
 .error-state h2 {
-  color: #1f2937;
+  color: var(--color-text-primary);
   margin-bottom: 0.5rem;
 }
 
 .error-state p {
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin-bottom: 1.5rem;
 }
 
@@ -568,18 +568,18 @@ onUnmounted(() => {
 }
 
 .last-updated {
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 0.875rem;
   margin-top: 0.75rem;
 }
 
 .delivery-card {
-  background: white;
+  background: var(--bg-white);
   border-radius: 12px;
   padding: 1rem;
   margin-top: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px var(--shadow-light);
+  border: 1px solid var(--border-light);
 }
 
 .delivery-header {
@@ -592,7 +592,7 @@ onUnmounted(() => {
 .delivery-header h3 {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -635,27 +635,27 @@ onUnmounted(() => {
 }
 
 .info-text {
-  color: #4b5563;
+  color: var(--color-text-secondary);
   font-size: 0.875rem;
   line-height: 1.4;
 }
 
 .edit-notice {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--color-text-placeholder);
   margin: 0.75rem 0 0 0;
   padding-top: 0.75rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--border-light);
   text-align: center;
 }
 
 .order-summary-card {
-  background: white;
+  background: var(--bg-white);
   border-radius: 12px;
   padding: 1rem;
   margin-top: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px var(--shadow-light);
+  border: 1px solid var(--border-light);
 }
 
 .summary-header {
@@ -668,7 +668,7 @@ onUnmounted(() => {
 .summary-header h3 {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -686,30 +686,30 @@ onUnmounted(() => {
 
 .summary-label {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .summary-value {
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
 .summary-total {
   padding-top: 0.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-light);
   margin-top: 0.25rem;
 }
 
 .summary-total .summary-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
 }
 
 .total-amount {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .pending-price-notice {

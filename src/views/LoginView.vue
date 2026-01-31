@@ -483,16 +483,24 @@ const handleGoogleLogin = async (code: string) => {
 
 .form-input {
   padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--vt-c-gray-300);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   font-size: 1rem;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
+  background: var(--bg-white) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.form-input::placeholder {
+  color: var(--color-text-placeholder) !important;
 }
 
 .form-input:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background: var(--bg-white) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .form-input.input-error {

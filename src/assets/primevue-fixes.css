@@ -1,0 +1,348 @@
+/* Fix contrast issues - Force light mode styles using CSS variables */
+
+/* ============ INPUT FIXES ============ */
+.p-inputtext,
+.p-inputnumber-input,
+.p-dropdown,
+.p-multiselect,
+.p-calendar .p-inputtext,
+.p-password .p-inputtext {
+  background: var(--bg-white) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--border-default) !important;
+}
+
+.p-inputtext:enabled:hover,
+.p-dropdown:enabled:hover,
+.p-multiselect:enabled:hover {
+  border-color: var(--color-primary) !important;
+  background: var(--bg-white) !important;
+}
+
+.p-inputtext:enabled:focus,
+.p-dropdown:enabled:focus,
+.p-multiselect:enabled:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  background: var(--bg-white) !important;
+}
+
+/* Placeholder text */
+.p-inputtext::placeholder {
+  color: var(--color-text-placeholder) !important;
+  opacity: 1;
+}
+
+/* ============ DROPDOWN FIXES ============ */
+.p-dropdown-panel {
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-light) !important;
+  box-shadow: 0 10px 15px -3px var(--shadow-light) !important;
+}
+
+.p-dropdown-items {
+  background: var(--bg-white) !important;
+}
+
+.p-dropdown-item {
+  color: var(--color-text-primary) !important;
+  background: var(--bg-white) !important;
+}
+
+.p-dropdown-item:hover {
+  background: var(--surface-hover) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.p-dropdown-item.p-highlight {
+  background: var(--vt-c-blue-50) !important;
+  color: var(--color-primary-dark) !important;
+}
+
+/* Dropdown trigger icon */
+.p-dropdown-trigger {
+  color: var(--color-text-muted) !important;
+}
+
+.p-dropdown-trigger:hover {
+  color: var(--color-primary) !important;
+}
+
+/* ============ MULTISELECT FIXES ============ */
+.p-multiselect-panel {
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.p-multiselect-items {
+  background: var(--bg-white) !important;
+}
+
+.p-multiselect-item {
+  color: var(--color-text-primary) !important;
+  background: var(--bg-white) !important;
+}
+
+.p-multiselect-item:hover {
+  background: var(--surface-hover) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* ============ CALENDAR FIXES ============ */
+.p-datepicker {
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.p-datepicker-header {
+  background: var(--bg-light) !important;
+  color: var(--color-text-primary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.p-datepicker-calendar th {
+  color: var(--color-text-muted) !important;
+}
+
+.p-datepicker-calendar td > span {
+  color: var(--color-text-primary) !important;
+}
+
+.p-datepicker-calendar td > span:hover {
+  background: var(--surface-hover) !important;
+}
+
+.p-datepicker-calendar td.p-highlight > span {
+  background: var(--color-primary) !important;
+  color: var(--color-text-white) !important;
+}
+
+/* ============ BUTTON FIXES ============ */
+.p-button {
+  font-weight: 600 !important;
+}
+
+/* Asegurar que botones secundarios tengan buen contraste */
+.p-button.p-button-secondary {
+  background: var(--bg-lighter) !important;
+  color: var(--color-text-secondary) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.p-button.p-button-secondary:hover {
+  background: var(--border-light) !important;
+  color: var(--vt-c-gray-800) !important;
+}
+
+/* Botón de texto */
+.p-button.p-button-text {
+  color: var(--color-primary) !important;
+  background: transparent !important;
+}
+
+.p-button.p-button-text:hover {
+  background: rgba(99, 102, 241, 0.1) !important;
+  color: var(--color-primary-dark) !important;
+}
+
+/* ============ CARD FIXES ============ */
+.p-card {
+  background: var(--surface-card) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.p-card .p-card-title {
+  color: var(--color-text-primary) !important;
+}
+
+.p-card .p-card-subtitle {
+  color: var(--color-text-muted) !important;
+}
+
+.p-card .p-card-content {
+  color: var(--color-text-secondary) !important;
+}
+
+/* ============ DIALOG FIXES ============ */
+.p-dialog {
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.p-dialog .p-dialog-header {
+  background: var(--bg-light) !important;
+  color: var(--color-text-primary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.p-dialog .p-dialog-content {
+  background: var(--bg-white) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.p-dialog .p-dialog-footer {
+  background: var(--bg-light) !important;
+  border-top: 1px solid var(--border-light) !important;
+}
+
+/* ============ MENU FIXES ============ */
+.p-menu {
+  background: var(--bg-white) !important;
+  border: 1px solid var(--border-light) !important;
+}
+
+.p-menu .p-menuitem-link {
+  color: var(--color-text-secondary) !important;
+}
+
+.p-menu .p-menuitem-link:hover {
+  background: var(--surface-hover) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.p-menu .p-menuitem-icon {
+  color: var(--color-text-muted) !important;
+}
+
+/* ============ TAG FIXES ============ */
+.p-tag {
+  font-weight: 600 !important;
+}
+
+/* ============ TOAST FIXES ============ */
+.p-toast .p-toast-message {
+  border-radius: 0.75rem !important;
+}
+
+.p-toast .p-toast-message-content {
+  padding: 1rem 1.25rem !important;
+}
+
+.p-toast .p-toast-summary {
+  font-weight: 600 !important;
+  color: inherit !important;
+}
+
+.p-toast .p-toast-detail {
+  color: inherit !important;
+  opacity: 0.9;
+}
+
+/* ============ TABVIEW FIXES ============ */
+.p-tabview .p-tabview-nav {
+  background: var(--bg-light) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  color: var(--color-text-muted) !important;
+  background: transparent !important;
+}
+
+.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  color: var(--color-primary) !important;
+  background: var(--bg-white) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.p-tabview .p-tabview-panels {
+  background: var(--bg-white) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+/* ============ DATA TABLE FIXES ============ */
+.p-datatable {
+  background: var(--bg-white) !important;
+}
+
+.p-datatable .p-datatable-header {
+  background: var(--bg-light) !important;
+  color: var(--color-text-primary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: var(--bg-light) !important;
+  color: var(--color-text-secondary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  background: var(--bg-white) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: var(--surface-hover) !important;
+}
+
+.p-datatable .p-datatable-tbody > tr.p-highlight {
+  background: var(--vt-c-blue-50) !important;
+  color: var(--color-primary-dark) !important;
+}
+
+/* ============ PAGINATOR FIXES ============ */
+.p-paginator {
+  background: var(--bg-white) !important;
+  border-top: 1px solid var(--border-light) !important;
+}
+
+.p-paginator .p-paginator-page {
+  color: var(--color-text-muted) !important;
+}
+
+.p-paginator .p-paginator-page.p-highlight {
+  background: var(--color-primary) !important;
+  color: var(--color-text-white) !important;
+}
+
+/* ============ CHECKBOX & RADIO FIXES ============ */
+.p-checkbox .p-checkbox-box {
+  background: var(--bg-white) !important;
+  border: 2px solid var(--border-default) !important;
+}
+
+.p-checkbox .p-checkbox-box.p-highlight {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.p-radiobutton .p-radiobutton-box {
+  background: var(--bg-white) !important;
+  border: 2px solid var(--border-default) !important;
+}
+
+.p-radiobutton .p-radiobutton-box.p-highlight {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* ============ TOOLTIP FIXES ============ */
+.p-tooltip .p-tooltip-text {
+  background: var(--bg-dark) !important;
+  color: var(--color-text-white) !important;
+}
+
+/* ============ PROGRESS BAR FIXES ============ */
+.p-progressbar {
+  background: var(--border-light) !important;
+}
+
+.p-progressbar .p-progressbar-value {
+  background: var(--color-primary) !important;
+}
+
+/* ============ SLIDER FIXES ============ */
+.p-slider {
+  background: var(--border-light) !important;
+}
+
+.p-slider .p-slider-range {
+  background: var(--color-primary) !important;
+}
+
+.p-slider .p-slider-handle {
+  background: var(--bg-white) !important;
+  border: 2px solid var(--color-primary) !important;
+}

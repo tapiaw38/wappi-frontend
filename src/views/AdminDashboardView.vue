@@ -907,7 +907,7 @@ onMounted(() => {
 <style scoped>
 .admin-dashboard {
   min-height: 100vh;
-  background: #f1f5f9;
+  background: var(--surface-ground);
 }
 
 .dashboard-header {
@@ -976,8 +976,8 @@ onMounted(() => {
 
 .tabs {
   display: flex;
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--border-light);
   padding: 0 1rem;
 }
 
@@ -988,23 +988,24 @@ onMounted(() => {
   border-bottom: 3px solid transparent;
   cursor: pointer;
   font-weight: 500;
-  color: #64748b;
+  color: var(--color-text-muted);
   transition: all 0.2s;
 }
 
 .tab:hover {
-  color: #1e293b;
+  color: var(--color-text-primary);
 }
 
 .tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .dashboard-content {
   padding: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
+  color: var(--color-text-primary);
 }
 
 .loading {
@@ -1030,39 +1031,50 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .table-container {
-  background: white;
+  background: var(--bg-white);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px var(--shadow-light);
   overflow-x: auto;
+  border: 1px solid var(--border-light);
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--bg-white);
 }
 
 .data-table th,
 .data-table td {
   padding: 1rem;
   text-align: left;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .data-table th {
-  background: #f8fafc;
+  background: var(--bg-lighter);
   font-weight: 600;
-  color: #475569;
+  color: var(--color-text-primary);
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
+.data-table td {
+  color: var(--color-text-primary);
+  font-size: 0.9375rem;
+}
+
+.data-table tbody tr {
+  background: var(--bg-white);
+}
+
 .data-table tbody tr:hover {
-  background: #f8fafc;
+  background: var(--surface-hover);
 }
 
 .id-cell {
@@ -1074,7 +1086,7 @@ onMounted(() => {
 .id-text {
   font-family: monospace;
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .copy-btn {
@@ -1104,7 +1116,7 @@ onMounted(() => {
 }
 
 .profile-unknown {
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
 }
 
 .address-cell {
@@ -1126,18 +1138,18 @@ onMounted(() => {
 
 .user-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--color-text-primary);
 }
 
 .user-email {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .user-id-fallback {
   font-family: monospace;
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
 }
 
 .view-order-btn {
@@ -1165,7 +1177,7 @@ onMounted(() => {
 }
 
 .no-items {
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
   font-size: 0.875rem;
 }
 
@@ -1183,17 +1195,17 @@ onMounted(() => {
 }
 
 .profile-link:hover {
-  background: #e0e7ff;
+  background: var(--vt-c-blue-100);
 }
 
 .profile-name {
   font-weight: 500;
-  color: #4f46e5;
+  color: var(--color-primary-dark);
 }
 
 .profile-phone {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .profile-modal {
@@ -1591,6 +1603,13 @@ onMounted(() => {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 1rem;
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.form-select::placeholder,
+.form-input::placeholder {
+  color: #94a3b8 !important;
 }
 
 .form-select:focus,
@@ -1598,6 +1617,8 @@ onMounted(() => {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: #ffffff !important;
+  color: #1e293b !important;
 }
 
 .modal-actions {

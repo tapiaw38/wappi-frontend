@@ -360,21 +360,29 @@ onMounted(() => {
 
 .form-input {
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   font-size: 1rem;
   transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--bg-white) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.form-input::placeholder {
+  color: var(--color-text-placeholder) !important;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: var(--bg-white) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .form-input[readonly] {
-  background: #f9fafb;
-  color: #6b7280;
+  background: var(--bg-lighter) !important;
+  color: var(--color-text-muted) !important;
 }
 
 .coordinates-display {
