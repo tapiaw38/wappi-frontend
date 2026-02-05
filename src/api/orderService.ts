@@ -10,8 +10,8 @@ export interface UpdateOrderInput {
 
 export const orderService = {
   async getOrder(id: string): Promise<Order> {
-    const { data } = await apiClient.get<Order>(`/api/orders/${id}`)
-    return data
+    const response = await apiClient.get<{ data: Order }>(`/api/orders/${id}`)
+    return response.data.data
   },
 
   async createOrder(input: CreateOrderInput): Promise<Order> {

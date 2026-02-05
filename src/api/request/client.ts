@@ -2,7 +2,7 @@ import axios, { type AxiosInstance } from 'axios'
 
 export const client = (config?: { baseURL?: string; timeout?: number }): AxiosInstance => {
   const instance = axios.create({
-    baseURL: config?.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8080',
+    baseURL: config?.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8081',
     timeout: config?.timeout || 10000,
     headers: {
       'Content-Type': 'application/json',

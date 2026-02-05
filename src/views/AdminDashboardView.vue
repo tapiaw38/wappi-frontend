@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import { apiClient } from '../api/client'
 import { authClient } from '../api/authClient'
 import { authService } from '../api/authService'
 import AdminSettingsPanel from '../components/AdminSettingsPanel.vue'
 import { AppHeader } from '@/components/ui'
+import { useWebSocket } from '@/composables/useWebSocket'
+import { websocketService, type OrderClaimedPayload } from '@/services/websocket/websocketService'
+import Toast from 'primevue/toast'
 
 const router = useRouter()
+const toast = useToast()
 const currentUser = ref<{ first_name?: string; last_name?: string; email?: string } | null>(null)
 
 interface Location {
@@ -412,7 +417,34 @@ const shareOrderOnWhatsApp = (order: Order) => {
   window.open(whatsappUrl, '_blank')
 }
 
+// WebSocket connection status
+const wsConnected = ref(false)
+
+// Setup WebSocket for real-time notifications
+const { isConnected } = useWebSocket({
+  onOrderClaimed: (payload: OrderClaimedPayload) => {
+    // Show toast notification
+    toast.add({
+      severity: 'info',
+      summary: 'Nueva Orden Asignada',
+      detail: `Un usuario ha reclamado la orden ${payload.order_id.slice(0, 8)}...`,
+      life: 5000,
+    })
+    // Refresh orders list
+    fetchData()
+  },
+  onConnected: () => {
+    wsConnected.value = true
+    console.log('[AdminDashboard] WebSocket connected')
+  },
+  onDisconnected: () => {
+    wsConnected.value = false
+    console.log('[AdminDashboard] WebSocket disconnected')
+  },
+})
+
 const handleLogout = () => {
+  websocketService.disconnect()
   authService.logout()
   router.push('/login')
 }
@@ -431,6 +463,17 @@ const fetchCurrentUser = async () => {
 onMounted(() => {
   fetchData()
   fetchCurrentUser()
+
+  // Connect WebSocket if authenticated
+  const token = authService.getToken()
+  if (token) {
+    websocketService.connect(token)
+  }
+})
+
+onUnmounted(() => {
+  // Don't disconnect on unmount to allow notifications in other views
+  // websocketService.disconnect()
 })
 </script>
 
@@ -444,10 +487,16 @@ onMounted(() => {
       @logout="handleLogout"
     >
       <template #actions>
-        <button @click="fetchData" class="refresh-btn" :disabled="loading">
-          <i class="pi pi-refresh"></i>
-          <span>{{ loading ? 'Cargando...' : 'Actualizar' }}</span>
-        </button>
+        <div class="header-actions-group">
+          <div class="ws-status" :class="{ connected: isConnected }" :title="isConnected ? 'Conectado en tiempo real' : 'Desconectado'">
+            <span class="ws-indicator"></span>
+            <span class="ws-text">{{ isConnected ? 'En vivo' : 'Desconectado' }}</span>
+          </div>
+          <button @click="fetchData" class="refresh-btn" :disabled="loading">
+            <i class="pi pi-refresh"></i>
+            <span>{{ loading ? 'Cargando...' : 'Actualizar' }}</span>
+          </button>
+        </div>
       </template>
     </AppHeader>
 
@@ -914,6 +963,9 @@ onMounted(() => {
         </template>
       </div>
     </div>
+
+    <!-- Toast notifications -->
+    <Toast position="top-right" />
   </div>
 </template>
 
@@ -1895,5 +1947,69 @@ onMounted(() => {
 
 .settings-section {
   max-width: 800px;
+}
+
+/* WebSocket Status Indicator */
+.header-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ws-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: #fee2e2;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #991b1b;
+  transition: all 0.3s ease;
+}
+
+.ws-status.connected {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.ws-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulse 2s infinite;
+}
+
+.ws-status.connected .ws-indicator {
+  background: #10b981;
+  animation: none;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.ws-text {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .ws-text {
+    display: none;
+  }
+  
+  .ws-status {
+    padding: 0.375rem;
+  }
 }
 </style>

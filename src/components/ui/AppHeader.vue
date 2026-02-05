@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import { authService } from '@/api/authService'
 import { isAdmin } from '@/types/auth'
 import wappiLogo from '@/assets/img/wappi-logo.png'
+import NotificationBell from './NotificationBell.vue'
 
 interface Props {
   title?: string
@@ -149,12 +150,13 @@ onMounted(async () => {
     
     <div class="header-right">
       <slot name="actions" />
+      <NotificationBell v-if="props.isAdmin || userIsAdmin" />
       <div class="user-menu-trigger" @click="toggleMenu">
         <Avatar 
           :label="userInitials" 
           shape="circle" 
           class="user-avatar"
-          :class="{ 'is-admin': isAdmin || userIsAdmin }"
+          :class="{ 'is-admin': props.isAdmin || userIsAdmin }"
         />
         <i class="pi pi-chevron-down menu-chevron"></i>
       </div>

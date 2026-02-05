@@ -22,18 +22,18 @@ export const profileService = {
   },
 
   async completeProfile(input: CompleteProfileInput): Promise<Profile> {
-    const { data } = await apiClient.post<Profile>('/api/profiles/complete', input)
-    return data
+    const response = await apiClient.post<{ data: Profile }>('/api/profiles/complete', input)
+    return response.data.data
   },
 
   async getProfile(id: string): Promise<Profile> {
-    const { data } = await apiClient.get<Profile>(`/api/profiles/${id}`)
-    return data
+    const response = await apiClient.get<{ data: Profile }>(`/api/profiles/${id}`)
+    return response.data.data
   },
 
   async updateProfile(id: string, input: UpdateProfileInput): Promise<Profile> {
-    const { data } = await apiClient.put<Profile>(`/api/profiles/${id}`, input)
-    return data
+    const response = await apiClient.put<{ data: Profile }>(`/api/profiles/${id}`, input)
+    return response.data.data
   },
 
   async checkCompleted(): Promise<CheckCompletedResponse> {
