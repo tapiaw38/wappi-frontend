@@ -243,13 +243,7 @@ onUnmounted(() => {
     <AppHeader 
       title="Seguimiento de Pedido"
       :show-logo="true"
-    >
-      <template #logo>
-        <div class="order-header-brand">
-          <img :src="wappiLogo" alt="Wappi" class="header-logo" />
-        </div>
-      </template>
-    </AppHeader>
+    />
 
     <main class="main-content">
       <!-- Loading State -->
@@ -404,31 +398,6 @@ onUnmounted(() => {
   background: var(--surface-ground);
 }
 
-.app-header {
-  background: var(--bg-white);
-  padding: 1rem;
-  box-shadow: 0 1px 3px var(--shadow-light);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.header-logo {
-  height: 32px;
-  width: auto;
-}
-
-.app-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  text-align: center;
-  margin: 0;
-}
 
 .main-content {
   flex: 1;
@@ -853,20 +822,6 @@ onUnmounted(() => {
 
 /* Mobile Responsive */
 @media (max-width: 640px) {
-  .app-header {
-    padding: 0.75rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .header-logo {
-    height: 24px;
-  }
-  
-  .app-title {
-    font-size: 1.1rem;
-  }
-  
   .action-buttons {
     flex-direction: column;
   }
