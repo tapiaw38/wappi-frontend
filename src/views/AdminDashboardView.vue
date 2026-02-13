@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { apiClient } from '../api/client'
 import { authClient } from '../api/authClient'
 import { authService } from '../api/authService'
+import { paymentService } from '../api/paymentService'
+import { transactionService } from '../api/transactionService'
 import AdminSettingsPanel from '../components/AdminSettingsPanel.vue'
+import type { Transaction } from '../types/transaction'
+import { formatPrice, StatusLabels as TransactionStatusLabels, StatusColors as TransactionStatusColors } from '../types/transaction'
 import { AppHeader } from '@/components/ui'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { websocketService, type OrderClaimedPayload } from '@/services/websocket/websocketService'
@@ -56,13 +60,15 @@ interface UserInfo {
   first_name: string
   last_name: string
   email: string
+  has_payment_method?: boolean
 }
 
 const profiles = ref<Profile[]>([])
 const orders = ref<Order[]>([])
+const transactions = ref<Transaction[]>([])
 const usersMap = ref<Map<string, UserInfo>>(new Map())
 const loading = ref(true)
-const activeTab = ref<'orders' | 'profiles' | 'settings'>('orders')
+const activeTab = ref<'orders' | 'profiles' | 'settings' | 'transactions'>('orders')
 const editingOrder = ref<Order | null>(null)
 const editForm = ref({ status: '', eta: '' })
 const saving = ref(false)
@@ -106,8 +112,20 @@ const statusColors: Record<string, string> = {
 
 const fetchUserInfo = async (userId: string): Promise<UserInfo | null> => {
   try {
-    const response = await authClient.get(`/user/${userId}`)
-    return response.data.data
+    const [userResponse, paymentResponse] = await Promise.all([
+      authClient.get(`/user/${userId}`),
+      paymentService.checkPaymentMethod(userId).catch((err) => {
+        console.error(`Error checking payment method for user ${userId}:`, err)
+        return { has_payment_method: false }
+      })
+    ])
+    const userInfo = userResponse.data.data
+    const result = {
+      ...userInfo,
+      has_payment_method: paymentResponse.has_payment_method
+    }
+    console.log(`Fetched user info for ${userId}:`, { has_payment_method: result.has_payment_method })
+    return result
   } catch (err) {
     console.error(`Error fetching user ${userId}:`, err)
     return null
@@ -117,15 +135,29 @@ const fetchUserInfo = async (userId: string): Promise<UserInfo | null> => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const [profilesRes, ordersRes] = await Promise.all([
+    const [profilesRes, ordersRes, transactionsRes] = await Promise.all([
       apiClient.get('/api/admin/profiles'),
-      apiClient.get('/api/admin/orders')
+      apiClient.get('/api/admin/orders'),
+      transactionService.getTransactions()
     ])
     profiles.value = profilesRes.data.profiles
     orders.value = ordersRes.data.orders
+    transactions.value = transactionsRes.transactions
 
-    // Fetch user info for all unique user_ids
-    const uniqueUserIds = [...new Set(profiles.value.map(p => p.user_id))]
+    // Fetch user info for all unique user_ids from profiles and orders
+    const profileUserIds = profiles.value.map(p => p.user_id).filter(Boolean)
+    const orderUserIds = orders.value.map(o => o.user_id).filter(Boolean)
+    
+    // Also get user_ids from order profiles
+    const orderProfileUserIds = orders.value
+      .map(o => {
+        const profile = profiles.value.find(p => p.id === o.profile_id)
+        return profile?.user_id
+      })
+      .filter(Boolean)
+    
+    const uniqueUserIds = [...new Set([...profileUserIds, ...orderUserIds, ...orderProfileUserIds])]
+    
     const userInfoPromises = uniqueUserIds.map(async (userId) => {
       const userInfo = await fetchUserInfo(userId)
       if (userInfo) {
@@ -236,7 +268,7 @@ const saveItemsChanges = async () => {
   }
 }
 
-const startEdit = (order: Order) => {
+const startEdit = async (order: Order) => {
   editingOrder.value = order
   editForm.value = {
     status: order.status,
@@ -519,6 +551,12 @@ onUnmounted(() => {
       >
         Configuración
       </button>
+      <button
+        :class="['tab', { active: activeTab === 'transactions' }]"
+        @click="activeTab = 'transactions'"
+      >
+        Transacciones ({{ transactions.length }})
+      </button>
     </nav>
 
     <main class="dashboard-content">
@@ -540,6 +578,7 @@ onUnmounted(() => {
               <tr>
                 <th>ID</th>
                 <th>Estado</th>
+                <th>Pagado</th>
                 <th>ETA</th>
                 <th>Pedido</th>
                 <th>Perfil</th>
@@ -570,6 +609,14 @@ onUnmounted(() => {
                   <p v-if="order.status === 'MODIFICATION_REQUESTED' && order.status_message" class="status-message-text">
                     {{ order.status_message }}
                   </p>
+                </td>
+                <td>
+                  <span v-if="order.status !== 'CREATED'" class="paid-badge paid">
+                    ✓ Pagado
+                  </span>
+                  <span v-else class="paid-badge unpaid">
+                    ✗ Pendiente
+                  </span>
                 </td>
                 <td>{{ order.eta }}</td>
                 <td>
@@ -638,6 +685,69 @@ onUnmounted(() => {
       <!-- Settings Tab -->
       <div v-else-if="activeTab === 'settings'" class="settings-section">
         <AdminSettingsPanel />
+      </div>
+
+      <!-- Transactions Tab -->
+      <div v-else-if="activeTab === 'transactions'" class="transactions-list">
+        <div v-if="transactions.length === 0" class="empty-state">
+          <p>No hay transacciones registradas</p>
+        </div>
+
+        <div v-else class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Orden</th>
+                <th>Usuario</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>Payment ID</th>
+                <th>Collector ID</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="transaction in transactions" :key="transaction.id">
+                <td class="id-cell">
+                  <span class="id-text">{{ transaction.id.slice(0, 8) }}...</span>
+                </td>
+                <td>
+                  <span class="id-text">{{ transaction.order_id.slice(0, 8) }}...</span>
+                </td>
+                <td>
+                  <span class="id-text">{{ transaction.user_id.slice(0, 8) }}...</span>
+                </td>
+                <td class="amount-cell">
+                  <strong>{{ formatPrice(transaction.amount) }}</strong>
+                </td>
+                <td>
+                  <span
+                    class="status-badge"
+                    :style="{ backgroundColor: TransactionStatusColors[transaction.status] || '#6b7280' }"
+                  >
+                    {{ TransactionStatusLabels[transaction.status] || transaction.status }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="transaction.gateway_payment_id" class="id-text">
+                    {{ transaction.gateway_payment_id }}
+                  </span>
+                  <span v-else class="text-muted">-</span>
+                </td>
+                <td>
+                  <span v-if="transaction.collector_id" class="id-text">
+                    {{ transaction.collector_id }}
+                  </span>
+                  <span v-else class="text-muted">-</span>
+                </td>
+                <td>
+                  {{ new Date(transaction.created_at).toLocaleString('es-AR') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Profiles Tab -->
@@ -1806,6 +1916,23 @@ onUnmounted(() => {
   color: var(--color-text-secondary);
 }
 
+.payment-warning {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.payment-warning i {
+  font-size: 1rem;
+}
+
 .form-select,
 .form-input {
   width: 100%;
@@ -1949,6 +2076,20 @@ onUnmounted(() => {
   max-width: 800px;
 }
 
+.transactions-list {
+  width: 100%;
+}
+
+.amount-cell {
+  font-weight: 600;
+  color: #10b981;
+}
+
+.text-muted {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 /* WebSocket Status Indicator */
 .header-actions-group {
   display: flex;
@@ -2007,9 +2148,31 @@ onUnmounted(() => {
   .ws-text {
     display: none;
   }
-  
+
   .ws-status {
     padding: 0.375rem;
   }
+}
+
+/* Paid Badge Styles */
+.paid-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.paid-badge.paid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.paid-badge.unpaid {
+  background: #fee2e2;
+  color: #991b1b;
 }
 </style>

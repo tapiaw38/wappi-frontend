@@ -8,9 +8,11 @@ const props = withDefaults(defineProps<{
   accessToken: string
   defaultCenter?: { lng: number; lat: number }
   defaultZoom?: number
+  businessLocation?: { lng: number; lat: number } | null
 }>(), {
   defaultCenter: () => ({ lng: -58.3816, lat: -34.6037 }), // Buenos Aires default
-  defaultZoom: 13
+  defaultZoom: 13,
+  businessLocation: null
 })
 
 const emit = defineEmits<{
@@ -34,6 +36,7 @@ const map = ref<SimpleMap | null>(null)
 // Using unknown to avoid deep type instantiation issues with mapbox-gl
 const rawMap = ref<unknown>(null)
 const marker = ref<unknown>(null)
+const businessMarker = ref<unknown>(null)
 const isLoading = ref(false)
 
 const initMap = () => {
@@ -67,6 +70,11 @@ const initMap = () => {
   })
   newMap.addControl(geolocate, 'top-right')
 
+  // Initialize business location marker if provided
+  if (props.businessLocation) {
+    createBusinessMarker(props.businessLocation.lng, props.businessLocation.lat, newMap)
+  }
+
   // Initialize marker if there's an initial value
   if (props.modelValue) {
     createMarker(props.modelValue.lng, props.modelValue.lat, newMap)
@@ -94,6 +102,25 @@ const initMap = () => {
       geolocate.trigger()
     }
   })
+}
+
+const createBusinessMarker = (lng: number, lat: number, targetMap?: unknown) => {
+  const existingMarker = businessMarker.value
+  if (existingMarker) {
+    (existingMarker as mapboxgl.Marker).remove()
+  }
+
+  const mapToUse = targetMap || rawMap.value
+  if (mapToUse) {
+    const el = document.createElement('div')
+    el.className = 'business-marker'
+    el.innerHTML = '<i class="pi pi-building" style="color: #10b981; font-size: 24px;"></i>'
+    
+    const newMarker = new mapboxgl.Marker({ element: el, draggable: false })
+      .setLngLat([lng, lat])
+      .addTo(mapToUse as mapboxgl.Map)
+    businessMarker.value = newMarker
+  }
 }
 
 const createMarker = (lng: number, lat: number, targetMap?: unknown) => {
@@ -145,11 +172,24 @@ watch(() => props.modelValue, (newVal) => {
   }
 })
 
+// Watch for external changes to businessLocation
+watch(() => props.businessLocation, (newVal) => {
+  if (newVal && rawMap.value) {
+    createBusinessMarker(newVal.lng, newVal.lat, rawMap.value as mapboxgl.Map)
+  }
+})
+
 onMounted(() => {
   initMap()
 })
 
 onUnmounted(() => {
+  if (marker.value) {
+    (marker.value as mapboxgl.Marker).remove()
+  }
+  if (businessMarker.value) {
+    (businessMarker.value as mapboxgl.Marker).remove()
+  }
   if (map.value) {
     map.value.remove()
   }
@@ -199,5 +239,17 @@ onUnmounted(() => {
   color: #6b7280;
   text-align: center;
   margin-top: 0.5rem;
+}
+
+.business-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
 }
 </style>

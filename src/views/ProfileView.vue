@@ -3,7 +3,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { profileService } from '../api/profileService'
 import { authService } from '../api/authService'
+import { settingsService } from '../api/settingsService'
 import type { Profile } from '../types/profile'
+import type { Settings } from '../types/settings'
 import { isAdmin } from '../types/auth'
 import MapboxPicker from '../components/MapboxPicker.vue'
 import { AppHeader } from '@/components/ui'
@@ -21,6 +23,7 @@ const success = ref(false)
 const profile = ref<Profile | null>(null)
 const profileId = ref<string | null>(null)
 const isCompleted = ref(false)
+const settings = ref<Settings | null>(null)
 
 // Country codes
 const countries = [
@@ -52,6 +55,21 @@ const fullPhoneNumber = computed(() => {
   return `${selectedCountry.value.dialCode}${cleanNumber}`
 })
 
+// Map default center and zoom from admin settings
+const mapDefaultCenter = computed(() => {
+  if (settings.value) {
+    return {
+      lng: settings.value.default_map_longitude,
+      lat: settings.value.default_map_latitude
+    }
+  }
+  return { lng: -58.3816, lat: -34.6037 }
+})
+
+const mapDefaultZoom = computed(() => {
+  return settings.value?.default_map_zoom ?? 13
+})
+
 // Parse existing phone number to extract country and number
 const parsePhoneNumber = (fullPhone: string) => {
   for (const country of countries) {
@@ -66,13 +84,24 @@ const parsePhoneNumber = (fullPhone: string) => {
 
 const loadProfile = async () => {
   try {
+    loading.value = true
+    error.value = null
+    
     // First check if profile is completed
     const checkResult = await profileService.checkCompleted()
     isCompleted.value = checkResult.is_completed
-    profileId.value = checkResult.profile_id
+    profileId.value = checkResult.profile_id || null
 
-    if (checkResult.profile_id) {
-      // Load full profile
+    if (!checkResult.profile_id) {
+      // No profile exists - allow user to create one
+      profile.value = null
+      error.value = null
+      loading.value = false
+      return
+    }
+
+    // Load full profile
+    try {
       profile.value = await profileService.getProfile(checkResult.profile_id)
 
       // Populate form with existing data
@@ -87,13 +116,20 @@ const loadProfile = async () => {
         }
         address.value = profile.value.location.address
       }
+      
+      loading.value = false
+    } catch (profileErr: unknown) {
+      // Profile exists but failed to load details
+      const axiosError = profileErr as { response?: { data?: { message?: string } } }
+      error.value = axiosError.response?.data?.message || 'Error al cargar los detalles del perfil'
+      // Keep profileId so user can still try to update
+      loading.value = false
     }
-
-    error.value = null
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message || 'No se pudo cargar el perfil'
-  } finally {
+    error.value = axiosError.response?.data?.message || 'No se pudo verificar el perfil'
+    profile.value = null
+    profileId.value = null
     loading.value = false
   }
 }
@@ -108,31 +144,53 @@ const handleSubmit = async () => {
     return
   }
 
-  if (!profileId.value) {
-    error.value = 'No se encontró el perfil'
-    return
-  }
-
   submitting.value = true
   error.value = null
 
   try {
-    await profileService.updateProfile(profileId.value, {
-      phone_number: fullPhoneNumber.value,
-      longitude: location.value.lng,
-      latitude: location.value.lat,
-      address: address.value
-    })
+    let updatedProfile: Profile
+    
+    if (profileId.value) {
+      updatedProfile = await profileService.updateProfile(profileId.value, {
+        phone_number: fullPhoneNumber.value,
+        longitude: location.value.lng,
+        latitude: location.value.lat,
+        address: address.value
+      })
+    } else {
+      updatedProfile = await profileService.upsertProfile({
+        phone_number: fullPhoneNumber.value,
+        longitude: location.value.lng,
+        latitude: location.value.lat,
+        address: address.value
+      })
+      profileId.value = updatedProfile.id
+    }
+    
+    profile.value = updatedProfile
+    isCompleted.value = true
+    
+    if (updatedProfile.phone_number) {
+      parsePhoneNumber(updatedProfile.phone_number)
+    }
+    
+    if (updatedProfile.location) {
+      location.value = {
+        lng: updatedProfile.location.longitude,
+        lat: updatedProfile.location.latitude
+      }
+      address.value = updatedProfile.location.address
+    }
+    
     success.value = true
+    error.value = null
 
-    // Reload profile after 2 seconds
     setTimeout(() => {
       success.value = false
-      loadProfile()
     }, 2000)
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message || 'Error al actualizar el perfil'
+    error.value = axiosError.response?.data?.message || 'Error al guardar el perfil'
   } finally {
     submitting.value = false
   }
@@ -167,10 +225,33 @@ const fetchCurrentUser = async () => {
   }
 }
 
-onMounted(() => {
-  loadProfile()
-  checkAdminStatus()
-  fetchCurrentUser()
+const loadSettings = async () => {
+  try {
+    settings.value = await settingsService.getSettings()
+  } catch (err) {
+    console.error('Error loading settings:', err)
+    // Use default settings if loading fails
+    settings.value = null
+  }
+}
+
+onMounted(async () => {
+  try {
+    // Load profile first as it's the most important
+    await loadProfile()
+    
+    // Load other data in parallel (non-blocking)
+    Promise.all([
+      loadSettings(),
+      checkAdminStatus(),
+      fetchCurrentUser()
+    ]).catch(err => {
+      console.error('Error loading additional data:', err)
+    })
+  } catch (err) {
+    console.error('Error in onMounted:', err)
+    loading.value = false
+  }
 })
 </script>
 
@@ -191,14 +272,6 @@ onMounted(() => {
         <p>Cargando perfil...</p>
       </div>
 
-      <!-- Error State (No Profile) -->
-      <div v-else-if="error && !profile" class="error-state">
-        <div class="error-icon"><i class="pi pi-exclamation-triangle"></i></div>
-        <h2>Perfil no encontrado</h2>
-        <p>{{ error }}</p>
-        <p class="hint">Tu perfil aun no ha sido creado. Contacta al administrador.</p>
-      </div>
-
       <!-- Success State -->
       <div v-else-if="success" class="success-state">
         <div class="success-icon"><i class="pi pi-check-circle"></i></div>
@@ -206,15 +279,33 @@ onMounted(() => {
         <p>Tu informacion ha sido guardada correctamente.</p>
       </div>
 
+      <!-- Error loading profile details (but profile exists) -->
+      <div v-else-if="error && profileId && !profile" class="form-container">
+        <div class="profile-status status-incomplete">
+          <span><i class="pi pi-exclamation-triangle"></i> Error al cargar el perfil</span>
+        </div>
+        <div class="form-error">
+          {{ error }}
+        </div>
+        <button @click="loadProfile()" class="submit-button">
+          Reintentar
+        </button>
+      </div>
+
       <!-- Profile Form -->
       <div v-else class="form-container">
-        <div class="profile-status" :class="{ 'status-complete': isCompleted, 'status-incomplete': !isCompleted }">
+        <div v-if="profileId" class="profile-status" :class="{ 'status-complete': isCompleted, 'status-incomplete': !isCompleted }">
           <span v-if="isCompleted"><i class="pi pi-check-circle"></i> Perfil completo</span>
           <span v-else><i class="pi pi-exclamation-triangle"></i> Perfil incompleto</span>
         </div>
+        
+        <div v-else class="profile-status status-incomplete">
+          <span><i class="pi pi-info-circle"></i> Crea tu perfil</span>
+        </div>
 
         <p class="form-intro">
-          Actualiza tu informacion de entrega
+          <span v-if="profileId">Actualiza tu informacion de entrega</span>
+          <span v-else>Completa tu informacion de entrega</span>
         </p>
 
         <form @submit.prevent="handleSubmit" class="profile-form">
@@ -247,6 +338,8 @@ onMounted(() => {
             <MapboxPicker
               v-model="location"
               :access-token="MAPBOX_TOKEN"
+              :default-center="mapDefaultCenter"
+              :default-zoom="mapDefaultZoom"
               @address-change="handleAddressChange"
             />
           </div>

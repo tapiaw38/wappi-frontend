@@ -7,6 +7,7 @@ import AdminDashboardView from '../views/AdminDashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 import ClaimOrderView from '../views/ClaimOrderView.vue'
 import UserOrdersView from '../views/UserOrdersView.vue'
+import PaymentMethodsView from '../views/PaymentMethodsView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import { authService } from '../api/authService'
 import { isAdmin } from '../types/auth'
@@ -78,6 +79,12 @@ const router = createRouter({
       name: 'admin',
       component: AdminDashboardView,
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/payment-methods',
+      name: 'payment-methods',
+      component: PaymentMethodsView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/:pathMatch(.*)*',

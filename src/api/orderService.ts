@@ -24,8 +24,15 @@ export const orderService = {
     return data
   },
 
-  async claimOrder(token: string): Promise<ClaimOrderResponse> {
-    const { data } = await apiClient.post<ClaimOrderResponse>(`/api/orders/claim/${token}`)
+  async claimOrder(token: string, securityCode?: string): Promise<ClaimOrderResponse> {
+    const { data } = await apiClient.post<ClaimOrderResponse>(`/api/orders/claim/${token}`, {
+      security_code: securityCode
+    })
+    return data
+  },
+
+  async getClaimInfo(token: string): Promise<{ order_id: string; user_id: string | null; profile_id: string | null; status: string; is_claimed: boolean }> {
+    const { data } = await apiClient.get(`/api/orders/claim/${token}/info`)
     return data
   },
 

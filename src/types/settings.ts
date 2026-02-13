@@ -10,6 +10,7 @@ export interface Settings {
   delivery_base_price: number
   delivery_price_per_km: number
   delivery_price_per_kg: number
+  manager_collector_id?: string // MercadoPago collector ID for manager account
   created_at: string
   updated_at: string
 }
@@ -25,6 +26,7 @@ export interface UpdateSettingsInput {
   delivery_base_price?: number
   delivery_price_per_km?: number
   delivery_price_per_kg?: number
+  manager_collector_id?: string
 }
 
 export interface CalculateDeliveryInput {

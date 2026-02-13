@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { orderService } from '../api/orderService'
+import { paymentService } from '../api/paymentService'
 import type { ClaimOrderResponse } from '../types/order'
+import type { PaymentMethod } from '../types/payment'
 import { StatusLabels, StatusIcons } from '../types/order'
+import InputText from 'primevue/inputtext'
+import Button from 'primevue/button'
+import Dropdown from 'primevue/dropdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,31 +16,76 @@ const router = useRouter()
 const token = route.params.token as string
 
 const loading = ref(true)
+const claiming = ref(false)
 const error = ref<string | null>(null)
 const claimedOrder = ref<ClaimOrderResponse | null>(null)
+const paymentMethods = ref<PaymentMethod[]>([])
+const selectedPaymentMethod = ref<PaymentMethod | null>(null)
+const cvv = ref('')
+const showPaymentForm = ref(false)
+
+// Fetch payment methods
+const fetchPaymentMethods = async () => {
+  try {
+    const methods = await paymentService.getPaymentMethods()
+    paymentMethods.value = methods
+    // Auto-select default payment method
+    const defaultMethod = methods.find(m => m.is_default)
+    if (defaultMethod) {
+      selectedPaymentMethod.value = defaultMethod
+    } else if (methods.length > 0) {
+      selectedPaymentMethod.value = methods[0]
+    }
+  } catch (err) {
+    console.error('Error fetching payment methods:', err)
+  }
+}
+
+const hasPaymentMethod = computed(() => paymentMethods.value.length > 0)
 
 const claimOrder = async () => {
-  loading.value = true
+  if (!hasPaymentMethod.value || !selectedPaymentMethod.value || !cvv.value) {
+    error.value = 'Por favor selecciona un método de pago e ingresa el CVV'
+    return
+  }
+
+  if (cvv.value.length < 3 || cvv.value.length > 4) {
+    error.value = 'El CVV debe tener 3 o 4 dígitos'
+    return
+  }
+
+  claiming.value = true
   error.value = null
 
   try {
-    const response = await orderService.claimOrder(token)
+    const response = await orderService.claimOrder(token, cvv.value)
+
+    // Check if order was already claimed (backend now returns order info instead of error)
+    if (response.order_id && response.claimed_at) {
+      // Order was already claimed, redirect to order page
+      error.value = 'Esta orden ya fue reclamada. Redirigiendo...'
+      setTimeout(() => router.push(`/order/${response.order_id}`), 1500)
+      return
+    }
+
+    // New claim successful
     claimedOrder.value = response
+    showPaymentForm.value = false
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { code?: string; message?: string } } }
     const errorCode = axiosError.response?.data?.code
 
     if (errorCode === 'order:token:expired') {
       error.value = 'El enlace ha expirado. Por favor, solicita uno nuevo.'
-    } else if (errorCode === 'order:token:already-claimed') {
-      error.value = 'Esta orden ya fue reclamada.'
     } else if (errorCode === 'order:token:not-found') {
       error.value = 'Enlace invalido. Verifica que el enlace sea correcto.'
+    } else if (errorCode === 'order:payment-failed') {
+      error.value = 'El pago falló. Verifica tu CVV e intenta nuevamente.'
     } else {
       error.value = axiosError.response?.data?.message || 'Error al reclamar la orden. Intenta nuevamente.'
     }
   } finally {
-    loading.value = false
+    claiming.value = false
   }
 }
 
@@ -49,8 +99,32 @@ const goToProfile = () => {
   router.push('/profile')
 }
 
-onMounted(() => {
-  claimOrder()
+const goToPaymentMethods = () => {
+  // Pass the claim token so we can return after adding a card
+  router.push(`/payment-methods?returnTo=claim&token=${token}`)
+}
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    // First check if the order is already claimed
+    const claimInfo = await orderService.getClaimInfo(token)
+
+    if (claimInfo.is_claimed) {
+      // Order already claimed, redirect to order details
+      error.value = 'Esta orden ya fue reclamada. Redirigiendo...'
+      setTimeout(() => router.push(`/order/${claimInfo.order_id}`), 1500)
+      return
+    }
+
+    // Order not claimed, fetch payment methods and show form
+    await fetchPaymentMethods()
+    showPaymentForm.value = true
+  } catch (err) {
+    error.value = 'Error al cargar los métodos de pago'
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -79,8 +153,81 @@ onMounted(() => {
           <div class="state-icon loading-icon">
             <div class="spinner"></div>
           </div>
-          <h2 class="state-title">Procesando tu orden</h2>
-          <p class="state-description">Estamos vinculando esta orden a tu cuenta...</p>
+          <h2 class="state-title">Cargando...</h2>
+          <p class="state-description">Estamos preparando tu orden...</p>
+        </div>
+
+        <!-- Payment Form -->
+        <div v-else-if="showPaymentForm && !claimedOrder" class="state-container">
+          <div class="state-icon payment-icon">
+            <i class="pi pi-credit-card"></i>
+          </div>
+          <h2 class="state-title">Confirmar Pedido</h2>
+          <p class="state-description">Ingresa el CVV de tu tarjeta para completar el pago</p>
+
+          <div v-if="!hasPaymentMethod" class="no-payment-method">
+            <i class="pi pi-exclamation-circle"></i>
+            <p>No tienes métodos de pago registrados</p>
+            <Button label="Agregar Tarjeta" @click="goToPaymentMethods" class="add-card-button" />
+          </div>
+
+          <div v-else class="payment-form">
+            <div class="form-group">
+              <label for="payment-method">Método de Pago</label>
+              <Dropdown
+                v-model="selectedPaymentMethod"
+                :options="paymentMethods"
+                optionLabel="last_four_digits"
+                placeholder="Selecciona una tarjeta"
+                class="payment-dropdown"
+              >
+                <template #value="slotProps">
+                  <div v-if="slotProps.value" class="payment-method-value">
+                    <i class="pi pi-credit-card"></i>
+                    <span>•••• {{ slotProps.value.last_four_digits }}</span>
+                    <span class="cardholder">{{ slotProps.value.cardholder_name }}</span>
+                  </div>
+                  <span v-else>{{ slotProps.placeholder }}</span>
+                </template>
+                <template #option="slotProps">
+                  <div class="payment-method-option">
+                    <i class="pi pi-credit-card"></i>
+                    <div>
+                      <div>•••• {{ slotProps.option.last_four_digits }}</div>
+                      <small>{{ slotProps.option.cardholder_name }}</small>
+                    </div>
+                  </div>
+                </template>
+              </Dropdown>
+            </div>
+
+            <div class="form-group">
+              <label for="cvv">Código de Seguridad (CVV) *</label>
+              <InputText
+                id="cvv"
+                v-model="cvv"
+                placeholder="123"
+                type="password"
+                maxlength="4"
+                class="cvv-input"
+                :disabled="claiming"
+              />
+              <small>Ingresa el CVV de tu tarjeta</small>
+            </div>
+
+            <div v-if="error" class="error-message">
+              <i class="pi pi-exclamation-triangle"></i>
+              {{ error }}
+            </div>
+
+            <Button
+              label="Confirmar y Pagar"
+              @click="claimOrder"
+              :loading="claiming"
+              :disabled="!cvv || !selectedPaymentMethod"
+              class="submit-button"
+            />
+          </div>
         </div>
 
         <!-- Success State -->
@@ -88,8 +235,8 @@ onMounted(() => {
           <div class="state-icon success-icon">
             <i class="pi pi-check-circle"></i>
           </div>
-          <h2 class="state-title">Orden Reclamada</h2>
-          <p class="state-description">La orden ha sido vinculada a tu cuenta exitosamente.</p>
+          <h2 class="state-title">¡Pago Confirmado!</h2>
+          <p class="state-description">Tu pedido ha sido confirmado y el pago procesado exitosamente.</p>
 
           <div class="order-details">
             <div class="detail-row">
@@ -119,12 +266,12 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Error State -->
-        <div v-else-if="error" class="state-container error">
+        <!-- Error State (without payment form) -->
+        <div v-else-if="error && !showPaymentForm" class="state-container error">
           <div class="state-icon error-icon">
             <i class="pi pi-exclamation-triangle"></i>
           </div>
-          <h2 class="state-title">No se pudo reclamar</h2>
+          <h2 class="state-title">No se pudo procesar</h2>
           <p class="state-description">{{ error }}</p>
 
           <div class="action-buttons">
@@ -201,7 +348,7 @@ onMounted(() => {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
   padding: 2rem;
 }
 
@@ -274,30 +421,24 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 2rem;
+  color: white;
 }
 
 .loading-icon {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+.payment-icon {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
 .success-icon {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
-.success-icon span {
-  color: white;
-  font-size: 2rem;
-  font-weight: bold;
-}
-
 .error-icon {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.error-icon span {
-  color: white;
-  font-size: 2rem;
-  font-weight: bold;
 }
 
 .spinner {
@@ -323,6 +464,93 @@ onMounted(() => {
 .state-description {
   color: #6b7280;
   margin: 0 0 1.5rem 0;
+}
+
+.no-payment-method {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.no-payment-method i {
+  font-size: 2rem;
+  color: #f59e0b;
+  margin-bottom: 0.5rem;
+}
+
+.no-payment-method p {
+  color: #92400e;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.add-card-button {
+  background: #f59e0b !important;
+  border-color: #f59e0b !important;
+}
+
+.payment-form {
+  text-align: left;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.payment-dropdown,
+.cvv-input {
+  width: 100%;
+}
+
+.payment-method-value,
+.payment-method-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cardholder {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-left: auto;
+}
+
+.error-message {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.submit-button {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: none !important;
+  padding: 0.875rem !important;
+  font-weight: 600 !important;
 }
 
 .order-details {
@@ -359,6 +587,9 @@ onMounted(() => {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .action-buttons {

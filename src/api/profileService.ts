@@ -39,5 +39,10 @@ export const profileService = {
   async checkCompleted(): Promise<CheckCompletedResponse> {
     const { data } = await apiClient.get<CheckCompletedResponse>('/api/profiles/check-completed')
     return data
+  },
+
+  async upsertProfile(input: UpdateProfileInput): Promise<Profile> {
+    const response = await apiClient.post<{ data: Profile }>('/api/profiles/upsert', input)
+    return response.data.data
   }
 }

@@ -20,7 +20,8 @@ const form = ref({
   default_item_weight: 500,
   delivery_base_price: 500,
   delivery_price_per_km: 200,
-  delivery_price_per_kg: 100
+  delivery_price_per_kg: 100,
+  manager_collector_id: ''
 })
 
 const fetchSettings = async () => {
@@ -39,7 +40,8 @@ const fetchSettings = async () => {
       default_item_weight: settings.value.default_item_weight,
       delivery_base_price: settings.value.delivery_base_price,
       delivery_price_per_km: settings.value.delivery_price_per_km,
-      delivery_price_per_kg: settings.value.delivery_price_per_kg
+      delivery_price_per_kg: settings.value.delivery_price_per_kg,
+      manager_collector_id: settings.value.manager_collector_id || ''
     }
   } catch (err) {
     console.error('Error fetching settings:', err)
@@ -247,6 +249,26 @@ onMounted(() => {
             class="form-input"
           />
           <span class="input-hint">Se usa cuando un producto no tiene peso especificado</span>
+        </div>
+      </section>
+
+      <!-- Manager Account Section -->
+      <section class="form-section">
+        <h3>Cuenta del Manager</h3>
+        <p class="section-description">
+          ID de cuenta de MercadoPago (Collector ID) donde se acreditarán los pagos de las órdenes entregadas.
+        </p>
+
+        <div class="form-group">
+          <label for="manager_collector_id">Collector ID de MercadoPago</label>
+          <input
+            id="manager_collector_id"
+            v-model="form.manager_collector_id"
+            type="text"
+            placeholder="Ej: 123456789"
+            class="form-input"
+          />
+          <span class="input-hint">Este ID se obtiene de tu cuenta de MercadoPago</span>
         </div>
       </section>
 

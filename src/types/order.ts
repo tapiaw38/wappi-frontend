@@ -41,7 +41,9 @@ export function formatPrice(price: number): string {
 }
 
 export interface CreateOrderInput {
+  profile_id: string
   eta: string
+  security_code?: string
 }
 
 export interface UpdateStatusInput {

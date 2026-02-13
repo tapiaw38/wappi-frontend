@@ -74,6 +74,12 @@ const menuItems = computed(() => {
     command: () => router.push('/my-orders')
   })
   
+  items.push({
+    label: 'Métodos de Pago',
+    icon: 'pi pi-credit-card',
+    command: () => router.push('/payment-methods')
+  })
+  
   // Admin section
   if (props.isAdmin || userIsAdmin.value) {
     items.push({ separator: true })

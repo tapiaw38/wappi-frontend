@@ -5,6 +5,7 @@ import { orderService } from '../api/orderService'
 import { profileService } from '../api/profileService'
 import { authService } from '../api/authService'
 import { settingsService } from '../api/settingsService'
+import { paymentService } from '../api/paymentService'
 import type { Order } from '../types/order'
 import { calculateOrderTotal, formatPrice } from '../types/order'
 import type { Profile } from '../types/profile'
@@ -29,6 +30,7 @@ const isUserAdmin = ref(false)
 const markingDelivered = ref(false)
 const deliveryFee = ref<DeliveryFeeResult | null>(null)
 const calculatingDelivery = ref(false)
+const hasPaymentMethod = ref<boolean | null>(null)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
@@ -134,6 +136,19 @@ const fetchProfile = async (profileId: string) => {
 watch(() => order.value?.profile_id, (profileId) => {
   if (profileId) {
     fetchProfile(profileId)
+  }
+}, { immediate: true })
+
+// Check payment method when profile is loaded
+watch(() => profile.value?.user_id, async (userId) => {
+  if (userId && isProfileOwner.value) {
+    try {
+      const result = await paymentService.checkPaymentMethod(userId)
+      hasPaymentMethod.value = result.has_payment_method
+    } catch (err) {
+      console.error('Error checking payment method:', err)
+      hasPaymentMethod.value = null
+    }
   }
 }, { immediate: true })
 
@@ -265,6 +280,26 @@ onUnmounted(() => {
       <!-- Order Content -->
       <div v-else-if="order" class="order-content">
         <OrderHeader :order="order" />
+
+        <!-- Payment Method Alert -->
+        <div v-if="isProfileOwner && hasPaymentMethod === false && order.status !== 'DELIVERED' && order.status !== 'CANCELLED'"
+             class="status-alert alert-payment">
+          <div class="alert-content">
+            <span class="alert-icon">
+              <i class="pi pi-credit-card"></i>
+            </span>
+            <div class="alert-text">
+              <strong>Configura un método de pago</strong>
+              <p>Recuerda configurar un método de pago para que tu pedido pueda ser enviado y entregado. El pago se procesará automáticamente cuando el pedido sea entregado.</p>
+            </div>
+          </div>
+          <button
+            @click="router.push('/payment-methods')"
+            class="alert-button"
+          >
+            Configurar método de pago
+          </button>
+        </div>
 
         <!-- Status Message Alert -->
         <div v-if="order.status_message && (order.status === 'PAUSED' || order.status === 'CANCELLED' || order.status === 'MODIFICATION_REQUESTED')"
@@ -770,6 +805,11 @@ onUnmounted(() => {
 .alert-modification {
   border-left-color: #f97316;
   background: #fff7ed;
+}
+
+.alert-payment {
+  border-left-color: #3b82f6;
+  background: #eff6ff;
 }
 
 .alert-content {
